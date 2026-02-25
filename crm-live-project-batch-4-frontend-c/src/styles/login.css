@@ -1,0 +1,43 @@
+
+/* Card styling */
+.auth-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Inputs */
+.auth-input {
+  height: 35px;
+  border-radius: 8px;
+  border: 1px solid #e1e6ef;
+  padding-left: 14px;
+}
+
+.auth-input:focus {
+  border-color: #635bff;
+  box-shadow: none;
+}
+
+/* Button */
+.auth-btn {
+  background-color: #635bff;
+  border: none;
+  height: 46px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.auth-btn:hover {
+  background-color: #524be0;
+}
+
+/* Links */
+.auth-link {
+  color: #635bff;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}

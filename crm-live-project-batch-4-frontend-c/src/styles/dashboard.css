@@ -1,0 +1,284 @@
+/* LAYOUT*/
+.dashboard {
+    display: flex;
+    background: #f6f7fb;
+    min-height: 100vh;
+    /* padding-left: 6.5rem !important */
+    
+}
+
+.main-content {
+    flex: 1;
+     padding-top: 64px;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 90px;
+    background: #ffffff;
+    padding-top: 20px;
+    text-align: center;
+}
+
+.side-icon {
+    padding: 14px 0;
+    color: #888;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.side-icon i {
+    font-size: 18px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.side-icon.active {
+    background: #eef0ff;
+    color: #6c63ff;
+    border-radius: 14px;
+    margin: 6px;
+}
+
+
+
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-top: 20px;
+}
+
+/* STAT CARD  */
+.stat-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 120px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.stat-title {
+    font-size: 14px;
+    color: #8a8fa3;
+    margin-bottom: 6px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-icon i {
+    font-size: 22px;
+    color: #ffffff;
+}
+
+/* Sales header layout*/
+.sales-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Monthly dropdown */
+.sales-filter {
+    background: #f6f7fb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #374151;
+    cursor: pointer;
+}
+
+/*SALES DROPDOWN */
+
+.sales-dropdown {
+    position: relative;
+}
+
+.sales-dropdown select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+
+    padding: 8px 36px 8px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+
+    cursor: pointer;
+    outline: none;
+}
+
+.sales-card {
+  height: 360px;          
+  display: flex;
+  flex-direction: column;
+}
+
+.sales-header {
+  flex-shrink: 0;
+}
+
+.sales-chart {
+  flex: 1;               
+  min-height: 335px;   
+  padding: 0 18px 20px;
+}
+
+
+/* Custom arrow */
+.sales-dropdown::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid #9ca3af;
+    border-bottom: 2px solid #9ca3af;
+    transform: translateY(-50%) rotate(45deg);
+    pointer-events: none;
+}
+
+
+/* GENERAL CARD*/
+.card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+/*CONVERSION BARS*/
+.progress-row {
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+.progress-bg {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 6px;
+    margin-top: 6px;
+}
+
+.progress-bg div {
+    height: 100%;
+    border-radius: 6px;
+}
+
+/*CONVERSION CARD  */
+.conversion-card {
+  padding: 24px 26px;
+  height: 360px;             
+}
+.conversion-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #0f172a;
+}
+
+.conversion-row {
+  margin-bottom: 18px;
+}
+
+.conversion-row span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.main-content {
+  margin-left: 90px;
+  padding-top: 80px;
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    margin-left: 0;
+  }
+}
+
+/* Track */
+.conversion-track {
+  height: 6px;               
+  background: #e5e7eb;
+  border-radius: 999px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+/* Fill */
+.conversion-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+@media (max-width: 992px) {
+  .conversion-card {
+    height: auto;
+  }
+}
+
+
+/* TABLE*/
+.team-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+}
+
+.export-btn {
+    border: 1px solid #6c63ff;
+    color: #6c63ff;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* RESPONSIVE*/
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
