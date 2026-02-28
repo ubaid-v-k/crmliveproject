@@ -130,16 +130,12 @@ export default function LogCall({ open, onClose, onSave, leadName = "Jane Cooper
                                 </Typography>
                                 <TextField
                                     fullWidth
-                                    placeholder="Choose"
+                                    type="date"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <CalendarTodayIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                            </InputAdornment>
-                                        ),
-                                        sx: { borderRadius: "8px" }
+                                    InputLabelProps={{ shrink: true }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                                     }}
                                 />
                             </Grid>
@@ -149,16 +145,12 @@ export default function LogCall({ open, onClose, onSave, leadName = "Jane Cooper
                                 </Typography>
                                 <TextField
                                     fullWidth
-                                    placeholder="Choose"
+                                    type="time"
                                     value={time}
                                     onChange={(e) => setTime(e.target.value)}
-                                    InputProps={{
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <AccessTimeIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                            </InputAdornment>
-                                        ),
-                                        sx: { borderRadius: "8px" }
+                                    InputLabelProps={{ shrink: true }}
+                                    sx={{
+                                        "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                                     }}
                                 />
                             </Grid>

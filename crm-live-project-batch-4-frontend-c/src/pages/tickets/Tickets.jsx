@@ -62,10 +62,19 @@ export default function Tickets() {
     const filteredRows = useMemo(() => {
         const q = search.toLowerCase();
         return tickets.filter((r) => {
+            const title = r.title || "";
+            const owner = r.owner || "";
+            const status = r.status || "";
+            const source = r.source || "";
+            const priority = r.priority || "";
+
             const matchesSearch =
                 !q ||
-                r.title.toLowerCase().includes(q) ||
-                r.owner.toLowerCase().includes(q);
+                title.toLowerCase().includes(q) ||
+                owner.toLowerCase().includes(q) ||
+                status.toLowerCase().includes(q) ||
+                source.toLowerCase().includes(q) ||
+                priority.toLowerCase().includes(q);
 
             const matchesOwner = !filters.owner || r.owner === filters.owner;
             const matchesStatus = !filters.status || r.status === filters.status;
@@ -395,6 +404,7 @@ export default function Tickets() {
             </Box>
 
             <CreateTicket
+                key={isDrawerOpen ? `edit-${editData?.id || 'new'}` : 'closed'}
                 open={isDrawerOpen}
                 onClose={() => setIsDrawerOpen(false)}
                 onSave={handleSaveTicket}

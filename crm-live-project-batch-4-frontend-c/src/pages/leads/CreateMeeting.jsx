@@ -102,90 +102,59 @@ export default function CreateMeeting({ open, onClose, onSave, initialData }) {
                 />
             </Box>
 
-            {/* Start Date */}
-            <Box>
-                <Typography variant="caption" color="#ef4444" fontWeight={500} sx={{ mb: 0.5, display: 'block' }}>
-                    Start Date *
-                </Typography>
-                <TextField
-                    fullWidth
-                    placeholder="Choose"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <CalendarTodayIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                            </InputAdornment>
-                        ),
-                        sx: { borderRadius: "8px" }
-                    }}
-                />
-            </Box>
-
-            {/* Time Row */}
+            {/* Date & Time Row */}
             <Grid container spacing={2}>
                 <Grid size={6}>
                     <Typography variant="caption" color="#ef4444" fontWeight={500} sx={{ mb: 0.5, display: 'block' }}>
-                        Start Time *
+                        From Date *
                     </Typography>
                     <TextField
                         fullWidth
-                        placeholder="Choose"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <AccessTimeIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: "8px" }
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                            "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                         }}
                     />
                 </Grid>
                 <Grid size={6}>
                     <Typography variant="caption" color="#ef4444" fontWeight={500} sx={{ mb: 0.5, display: 'block' }}>
-                        End Time *
+                        From Time *
                     </Typography>
                     <TextField
                         fullWidth
-                        placeholder="Choose"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <AccessTimeIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: "8px" }
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                            "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                         }}
                     />
                 </Grid>
+                <Grid size={12}>
+                    <Typography variant="caption" color="#ef4444" fontWeight={500} sx={{ mb: 0.5, display: 'block' }}>
+                        Attendees *
+                    </Typography>
+                    <TextField
+                        select
+                        fullWidth
+                        value={attendees}
+                        onChange={(e) => setAttendees(e.target.value)}
+                        SelectProps={{
+                            multiple: true,
+                            renderValue: (selected) => selected.join(', '),
+                        }}
+                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                    >
+                        <MenuItem value="Maria Johnson">Maria Johnson</MenuItem>
+                        <MenuItem value="Jane Cooper">Jane Cooper</MenuItem>
+                        <MenuItem value="MikeRoss">Mike Ross</MenuItem>
+                    </TextField>
+                </Grid>
             </Grid>
-
-            {/* Attendees */}
-            <Box>
-                <Typography variant="caption" color="#ef4444" fontWeight={500} sx={{ mb: 0.5, display: 'block' }}>
-                    Attendees *
-                </Typography>
-                <TextField
-                    select
-                    fullWidth
-                    value={attendees}
-                    onChange={(e) => setAttendees(e.target.value)}
-                    SelectProps={{
-                        multiple: true,
-                        renderValue: (selected) => selected.join(', '),
-                    }}
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                >
-                    <MenuItem value="Maria Johnson">Maria Johnson</MenuItem>
-                    <MenuItem value="Jane Cooper">Jane Cooper</MenuItem>
-                    <MenuItem value="MikeRoss">Mike Ross</MenuItem>
-                </TextField>
-            </Box>
 
             {/* Location */}
             <Box>
@@ -300,6 +269,6 @@ export default function CreateMeeting({ open, onClose, onSave, initialData }) {
                     />
                 </Box>
             </Box>
-        </EntityDrawer>
+        </EntityDrawer >
     );
 }

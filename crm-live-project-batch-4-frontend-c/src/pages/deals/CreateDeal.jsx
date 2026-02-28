@@ -4,14 +4,14 @@ import EntityDrawer from "../../components/common/EntityDrawer";
 import AppInput from "../../components/form/AppInput";
 import AppSelect from "../../components/form/AppSelect";
 import { useForm } from "../../hooks/useForm";
+import { getCurrentUser } from "../../api/authService";
 import { useToast } from "../../hooks/useToast";
 
-const DEAL_STAGES = [
-    { value: "Appointment Scheduled", label: "Appointment Scheduled" },
-    { value: "Qualified to Buy", label: "Qualified to Buy" },
-    { value: "Presentation Scheduled", label: "Presentation Scheduled" },
-    { value: "Decision Maker Bought In", label: "Decision Maker Bought In" },
-    { value: "Contract Sent", label: "Contract Sent" },
+export const DEAL_STAGES = [
+    { value: "Contact", label: "Contact" },
+    { value: "Qualified Lead", label: "Qualified Lead" },
+    { value: "Proposal Sent", label: "Proposal Sent" },
+    { value: "Negotiation", label: "Negotiation" },
     { value: "Closed Won", label: "Closed Won" },
     { value: "Closed Lost", label: "Closed Lost" },
 ];
@@ -27,17 +27,18 @@ const DEAL_OWNERS = [
     { value: "Cameron Williamson", label: "Cameron Williamson" },
 ];
 
-const PRIORITIES = [
+export const PRIORITIES = [
     { value: "Low", label: "Low" },
     { value: "Medium", label: "Medium" },
     { value: "High", label: "High" },
+    { value: "Critical", label: "Critical" }, // Added Critical based on screenshot
 ];
 
 const INITIAL_FORM_STATE = {
     name: "",
     stage: "",
     amount: "",
-    owner: "",
+    owner: [],
     closeDate: "",
     priority: "",
 };
@@ -65,23 +66,41 @@ export default function CreateDeal({ open, onClose, onSave, editData }) {
         resetForm,
     } = useForm(INITIAL_FORM_STATE, true, validate);
 
+    const currentUser = getCurrentUser();
+    const currentUserName = currentUser ? (`${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email) : "";
+
     useEffect(() => {
         if (editData) {
             setValues({
                 name: editData.name || "",
                 stage: editData.stage || "",
                 amount: editData.amount || "",
-                owner: editData.owner || "",
+                owner: editData.owner ? (typeof editData.owner === 'string' ? editData.owner.split(',').map(s => s.trim()) : editData.owner) : [],
                 closeDate: editData.closeDate || "",
                 priority: editData.priority || "",
             });
         } else {
             resetForm();
+            if (currentUserName) {
+                setValues(prev => ({ ...prev, owner: [currentUserName] }));
+            }
         }
-    }, [editData, open, setValues, resetForm]);
+    }, [editData, open, setValues, resetForm, currentUserName]);
+
+    const ownerOptions = DEAL_OWNERS.map(o => o.value);
+    if (currentUserName && !ownerOptions.includes(currentUserName)) {
+        ownerOptions.unshift(currentUserName);
+    }
+    (values.owner || []).forEach(o => {
+        if (!ownerOptions.includes(o)) ownerOptions.push(o);
+    });
 
     const onSubmit = (formData) => {
-        onSave(formData);
+        const payload = {
+            ...formData,
+            owner: Array.isArray(formData.owner) ? formData.owner.join(", ") : formData.owner,
+        };
+        onSave(payload);
         toast.success(editData ? "Deal updated successfully" : "Deal created successfully");
         onClose();
     };
@@ -162,11 +181,12 @@ export default function CreateDeal({ open, onClose, onSave, editData }) {
                 <AppSelect
                     label="Deal Owner"
                     required
+                    multiple
                     placeholder="Choose"
                     name="owner"
                     value={values.owner}
                     onChange={handleChange}
-                    options={DEAL_OWNERS.map(o => o.value)}
+                    options={ownerOptions}
                     error={errors.owner}
                     helperText={errors.owner}
                 />

@@ -158,7 +158,7 @@ class DashboardConversionAPIView(APIView):
             "Proposal Sent": "#E0A100",
             "Negotiation": "#5948db",
             "Closed Won": "#00c853",
-            "Closed Lost": "#fe8084",
+            "Closed Lost": "#ef4444",
         }
         
         data = []

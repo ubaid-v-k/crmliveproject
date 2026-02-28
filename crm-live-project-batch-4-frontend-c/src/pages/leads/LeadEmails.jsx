@@ -13,55 +13,44 @@ import {
 import {
     KeyboardArrowDown as ArrowDownIcon,
     KeyboardArrowRight as ArrowRightIcon,
+    AttachFile as AttachFileIcon,
 } from "@mui/icons-material";
+import { Chip } from "@mui/material";
 
 
-const MOCK_EMAILS = [
-    {
-        id: 1,
-        subject: "Hello There",
-        from: "Maria Johnson",
-        to: "Jane Cooper",
-        date: "June 24, 2025 at 5:30PM",
-        preview: "Hey Jane Cooper,",
-        content: `Hey Jane Cooper,
-
-Thank you for showing interest in CRM!
-We noticed you recently filled out our demo request form on the website and wanted to reach out personally.
-
-Our solution helps businesses like yours streamline sales workflows, track lead progress, and boost conversion rates by up to 40%.
-
-I'd love to schedule a quick call to understand your needs better and show you how we can help. Are you available for a 15-minute chat this week?
-
-You can book a time that works for you
-If you have any specific questions or requirements, feel free to reply to this email directly.
-
-Looking forward to connecting!
-
-Warm regards,
-Rajat Sharma
-Senior Sales Executive
-CRM Pvt. Ltd.
-+91-9876543210
-rajat@salestrackcrm.com
-salestrackcrm.com`,
-    },
-    //     {
-    //         id: 2,
-    //         subject: "Hello There",
-    //         from: "Maria Johnson",
-    //         to: "Jane Cooper",
-    //         date: "June 24, 2025 at 5:30PM",
-    //         preview: "Hey Jane Cooper,",
-    //         content: "Previous email content..."
-    //     }
-];
-
-export default function LeadEmails({ onOpenCompose }) {
+export default function LeadEmails({ onOpenCompose, searchQuery = "", activities = [] }) {
     const [expanded, setExpanded] = useState({ 1: true });
 
     const toggleExpand = (id) => {
         setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // Filter emails based on search query
+    const filteredEmails = activities.filter((email) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            (email.subject && email.subject.toLowerCase().includes(query)) ||
+            (email.description && email.description.toLowerCase().includes(query))
+        );
+    });
+
+    const parseEmailContent = (description) => {
+        if (!description) return { cleanText: description, attachedFiles: [] };
+
+        let cleanText = description;
+        let attachedFiles = [];
+
+        const attachedFilesMatch = cleanText.match(/Attached Files:\s*(.+)$/m);
+        if (attachedFilesMatch && attachedFilesMatch[1] && attachedFilesMatch[1].trim() !== "None") {
+            attachedFiles = attachedFilesMatch[1].split(',').map(f => f.trim());
+        }
+
+        // Clean up the meta text from the description body so it looks like a real email
+        cleanText = cleanText.replace(/Attachments:\s*\d+\s*\n?/g, '');
+        cleanText = cleanText.replace(/Attached Files:\s*(.+)\s*\n?/g, '');
+
+        return { cleanText: cleanText.trim(), attachedFiles };
     };
 
     return (
@@ -102,7 +91,7 @@ export default function LeadEmails({ onOpenCompose }) {
                 June 2025
             </Typography>
 
-            {MOCK_EMAILS.map((email) => (
+            {filteredEmails.map((email) => (
                 <Paper
                     key={email.id}
                     elevation={0}
@@ -136,43 +125,70 @@ export default function LeadEmails({ onOpenCompose }) {
 
                             <Box>
                                 <Typography variant="body2" fontWeight={700} color="#1e293b" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <span>Logged Email - {email.subject}</span>
-                                    <span style={{ fontWeight: 400, color: "#64748b" }}>by {email.from}</span>
+                                    <span>Logged Email - {email.subject || "No Subject"}</span>
                                 </Typography>
                                 {/* Show preview if collapsed */}
                                 {!expanded[email.id] && (
                                     <Typography variant="body2" color="#64748b" sx={{ mt: 0.5 }}>
-                                        {email.preview}
-                                    </Typography>
-                                )}
-                                {/* Show 'To' if expanded */}
-                                {expanded[email.id] && (
-                                    <Typography variant="body2" color="#64748b" sx={{ mt: 0.5 }}>
-                                        To {email.to}
+                                        {email.description ? email.description.substring(0, 80) + "..." : ""}
                                     </Typography>
                                 )}
                             </Box>
                         </Box>
 
                         <Typography variant="caption" color="#94a3b8" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
-                            {email.date}
+                            {email.createdAt ? new Date(email.createdAt).toLocaleString() : ""}
                         </Typography>
                     </Box>
 
                     {/* Email Content */}
                     <Collapse in={expanded[email.id]}>
                         <Box sx={{ px: 5, pb: 4 }}>
-                            <Typography
-                                variant="body2"
-                                color="#334155"
-                                sx={{
-                                    whiteSpace: 'pre-wrap',
-                                    lineHeight: 1.6,
-                                    fontFamily: "'Inter', sans-serif"
-                                }}
-                            >
-                                {email.content}
-                            </Typography>
+                            {(() => {
+                                const { cleanText, attachedFiles } = parseEmailContent(email.description);
+                                return (
+                                    <>
+                                        <Typography
+                                            variant="body2"
+                                            color="#334155"
+                                            sx={{
+                                                whiteSpace: 'pre-wrap',
+                                                lineHeight: 1.6,
+                                                fontFamily: "'Inter', sans-serif"
+                                            }}
+                                        >
+                                            {cleanText || "No content body available."}
+                                        </Typography>
+
+                                        {attachedFiles.length > 0 && (
+                                            <Box sx={{ mt: 3, pt: 2, borderTop: '1px dashed #e2e8f0' }}>
+                                                <Typography variant="caption" color="#64748b" fontWeight={600} display="block" mb={1}>
+                                                    Attachments ({attachedFiles.length})
+                                                </Typography>
+                                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                    {attachedFiles.map((fileName, idx) => (
+                                                        <Chip
+                                                            key={idx}
+                                                            icon={<AttachFileIcon sx={{ fontSize: '14px !important' }} />}
+                                                            label={fileName}
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{
+                                                                bgcolor: '#f8fafc',
+                                                                color: '#475569',
+                                                                borderColor: '#e2e8f0',
+                                                                borderRadius: '6px',
+                                                                fontWeight: 500,
+                                                                "& .MuiChip-icon": { color: '#64748b' }
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </Stack>
+                                            </Box>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </Box>
                     </Collapse>
                 </Paper>

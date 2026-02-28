@@ -8,28 +8,28 @@ const getAuthHeader = () => {
 };
 
 export const fetchTickets = async () => {
-    const response = await axios.get(`${API_BASE_URL}/core/tickets/`, {
+    const response = await axios.get(`${API_BASE_URL}/tickets/`, {
         headers: getAuthHeader(),
     });
     return response.data;
 };
 
 export const createTicket = async (ticketData) => {
-    const response = await axios.post(`${API_BASE_URL}/core/tickets/`, ticketData, {
+    const response = await axios.post(`${API_BASE_URL}/tickets/`, ticketData, {
         headers: getAuthHeader(),
     });
     return response.data;
 };
 
 export const updateTicketApi = async (id, ticketData) => {
-    const response = await axios.patch(`${API_BASE_URL}/core/tickets/${id}/`, ticketData, {
+    const response = await axios.patch(`${API_BASE_URL}/tickets/${id}/`, ticketData, {
         headers: getAuthHeader(),
     });
     return response.data;
 };
 
 export const deleteTicketApi = async (id) => {
-    await axios.delete(`${API_BASE_URL}/core/tickets/${id}/`, {
+    await axios.delete(`${API_BASE_URL}/tickets/${id}/`, {
         headers: getAuthHeader(),
     });
 };

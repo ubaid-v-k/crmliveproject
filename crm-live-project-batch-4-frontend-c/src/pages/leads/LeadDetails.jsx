@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -28,7 +28,6 @@ import {
   ContentCopy as CopyIcon,
   KeyboardArrowDown as ArrowDownIcon,
   KeyboardArrowRight as ArrowRightIcon,
-  RadioButtonUnchecked as UncheckedIcon,
   AutoAwesome as AutoAwesomeIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
@@ -40,61 +39,19 @@ import LeadEmails from './LeadEmails';
 import LeadCalls from './LeadCalls';
 import LeadTasks from './LeadTasks';
 import LeadMeetings from './LeadMeetings';
+import ActivityFeed from '../../components/common/ActivityFeed';
 import { createNotification } from "../../api/dashboard.api";
+import { fetchActivities, generateAiSummary } from "../../api/activities.api";
+import { fetchLead, convertLead } from "../../api/leads.api";
+import axios from "axios";
+
 import AttachmentsSection from '../../components/common/AttachmentsSection';
 import ComposeEmailDialog from '../../components/common/ComposeEmailDialog';
 import CreateLead from './CreateLead';
+import ConvertLeadModal from './ConvertLeadModal';
 
 /* ================= THEME ================= */
 const PRIMARY = "#5B4DDB";
-
-/* ================= MOCK DATA ================= */
-const ACTIVITIES = [
-  {
-    id: 1,
-    type: 'task',
-    title: 'Task assigned to Maria Johnson',
-    subtitle: 'Prepare quote for Jane Cooper',
-    date: 'June 24, 2025 at 5:30PM',
-    status: 'overdue', // overdue, completed, pending
-  },
-  {
-    id: 2,
-    type: 'task',
-    title: 'Task assigned to Maria Johnson',
-    subtitle: 'Prepare quote for Jane Cooper',
-    date: 'June 24, 2025 at 5:30PM',
-    status: 'overdue',
-  },
-  {
-    id: 3,
-    type: 'call',
-    title: 'Call from Maria Johnson',
-    subtitle: 'Brought Maria through our latest product line. She\'s interested and is going to get back to me.',
-    date: 'June 24, 2025 at 5:30PM',
-  },
-  {
-    id: 4,
-    type: 'meeting',
-    title: 'Meeting Maria Johnson and Jane Cooper',
-    subtitle: 'Let\'s discuss our new product line.',
-    date: 'June 24, 2025 at 5:30PM',
-  },
-  {
-    id: 5,
-    type: 'email',
-    title: 'Email tracking',
-    subtitle: 'Jane Cooper opened Hello there',
-    date: 'June 24, 2025 at 5:30PM',
-  },
-  {
-    id: 6,
-    type: 'note',
-    title: 'Note by Maria Johnson',
-    subtitle: 'Sample Note',
-    date: 'June 24, 2025 at 5:30PM',
-  },
-];
 
 const LeadDetailPage = () => {
   const { id } = useParams();
@@ -104,22 +61,78 @@ const LeadDetailPage = () => {
   const [composeOpen, setComposeOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [files, setFiles] = useState([]);
 
-  // Mock lead data
-  const lead = {
-    id: id,
-    name: 'Jane Cooper',
-    firstName: 'Jane',
-    lastName: 'Cooper',
-    email: 'janecooper@gmail.com',
-    phone: '078 5432 8505',
-    status: 'New',
-    jobTitle: 'Salesperson',
-    createdDate: '04/08/2025 2:31 PM GMT+5:30',
+  const [activities, setActivities] = useState([]);
+  const [aiSummary, setAiSummary] = useState("Loading summary...");
+
+  const [lead, setLead] = useState(null);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+
+  const loadLead = async () => {
+    try {
+      const data = await fetchLead(id);
+      setLead(data);
+    } catch (error) {
+      toast.error("Failed to load lead details");
+    }
+  };
+
+  const loadActivities = async () => {
+    const data = await fetchActivities('lead', id);
+    setActivities(data);
+  };
+
+  const loadSummary = async () => {
+    setAiSummary("Loading summary...");
+    const summary = await generateAiSummary('lead', id, files.length);
+    setAiSummary(summary);
+  };
+
+  useEffect(() => {
+    loadSummary();
+  }, [files]);
+
+  useEffect(() => {
+    loadLead();
+    loadActivities();
+    loadSummary();
+  }, [id]);
+
+  const handleConvertClick = () => {
+    setIsConvertModalOpen(true);
+  };
+
+  const handleConvert = async (dealData) => {
+    try {
+      setIsConverting(true);
+      await convertLead(id, dealData);
+      toast.success("Lead successfully converted to Deal!");
+      setIsConvertModalOpen(false);
+      navigate('/deals');
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to convert lead");
+      setIsConverting(false);
+    }
   };
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  const completeTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem("crm_user_token");
+      await axios.patch(`http://localhost:8000/api/core/activities/${taskId}/`, { status: 'completed' }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Task marked as completed");
+      loadActivities(); // Refresh feed
+      loadSummary();    // Refresh summary
+    } catch (error) {
+      toast.error("Failed to complete task");
+    }
   };
 
   // Helper renderers
@@ -132,6 +145,14 @@ const LeadDetailPage = () => {
       default: return <TaskIcon sx={{ fontSize: 18, color: '#64748b' }} />;
     }
   };
+
+  if (!lead) {
+    return (
+      <Box sx={{ p: 4, display: 'flex', justifyContent: 'center' }}>
+        <Typography>Loading lead details...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', height: '100%', alignItems: 'stretch' }}>
@@ -178,13 +199,13 @@ const LeadDetailPage = () => {
           </Box>
         </Box>
 
-        {/* Status Dropdown (Styled text like DealDetails) */}
         <Stack direction="row" alignItems="center" spacing={0.5} mb={3}>
           <Typography variant="body2" color="#64748b">Status :</Typography>
           <Select
             variant="standard"
             disableUnderline
             value={lead.status}
+            disabled={lead.status === 'Converted'}
             // onChange handler would go here
             IconComponent={ArrowDownIcon}
             sx={{
@@ -195,7 +216,7 @@ const LeadDetailPage = () => {
               "& .MuiSvgIcon-root": { color: PRIMARY, fontSize: 18 }
             }}
           >
-            {['New', 'Contacted', 'Qualified', 'Lost'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+            {['New', 'Contacted', 'Qualified', 'Lost', 'Converted'].map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
           </Select>
         </Stack>
 
@@ -316,16 +337,22 @@ const LeadDetailPage = () => {
 
           <Button
             variant="outlined"
+            onClick={handleConvertClick}
+            disabled={lead.status !== 'Qualified' || isConverting}
             sx={{
               borderColor: PRIMARY,
               color: PRIMARY,
               textTransform: 'none',
               borderRadius: '8px',
               px: 3,
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              "&.Mui-disabled": {
+                borderColor: "#e2e8f0",
+                color: "#94a3b8"
+              }
             }}
           >
-            Convert
+            {isConverting ? "Converting..." : "Convert"}
           </Button>
         </Box>
 
@@ -346,93 +373,17 @@ const LeadDetailPage = () => {
         </Tabs>
 
         {activeTab === 0 ? (
-          <Box>
-            <Typography variant="subtitle2" fontWeight={700} color="#1e293b" mb={2}>Upcoming</Typography>
-
-            <List sx={{ mb: 4, p: 0 }}>
-              {ACTIVITIES.filter((a) => a.type === "task" && (a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))).map((item, idx) => (
-                <Paper
-                  key={idx}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    mb: 2,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                  }}
-                >
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <ArrowDownIcon fontSize="small" sx={{ color: "#94a3b8" }} />
-                      <Typography variant="body2" fontWeight={600} color="#334155">
-                        {item.title}
-                      </Typography>
-                    </Box>
-                    {item.status === "overdue" && (
-                      <Typography variant="caption" sx={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <TaskIcon fontSize="inherit" /> Overdue : {item.date}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Box sx={{ pl: 4, display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <UncheckedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                    <Typography variant="body2" color="#64748b">
-                      {item.subtitle}
-                    </Typography>
-                  </Box>
-                </Paper>
-              ))}
-            </List>
-
-            <Typography variant="subtitle2" fontWeight={700} color="#1e293b" mb={2}>June 2025</Typography>
-            <List sx={{ p: 0 }}>
-              {ACTIVITIES.filter((a) => a.type !== "task" && (a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))).map((item, idx) => (
-                <Paper
-                  key={idx}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    mb: 2,
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Box sx={{ display: "flex", gap: 1.5 }}>
-                      <ArrowDownIcon fontSize="small" sx={{ color: "#94a3b8", mt: 0.5 }} />
-                      <Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                          {renderActivityIcon(item.type)}
-                          <Typography variant="body2" fontWeight={600} color="#334155">
-                            {item.title}
-                          </Typography>
-                        </Box>
-                        <Typography variant="body2" color="#64748b" sx={{ fontSize: "13px" }}>
-                          {item.subtitle}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Typography variant="caption" color="#94a3b8">
-                      {item.date}
-                    </Typography>
-                  </Box>
-                </Paper>
-              ))}
-            </List>
-          </Box>
+          <ActivityFeed activities={activities} searchQuery={searchQuery} onCompleteTask={completeTask} />
         ) : activeTab === 1 ? (
-          <LeadNotes />
+          <LeadNotes searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'note')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="lead" entityId={id} />
         ) : activeTab === 2 ? (
-          <LeadEmails onOpenCompose={() => setComposeOpen(true)} />
+          <LeadEmails onOpenCompose={() => setComposeOpen(true)} searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'email')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="lead" entityId={id} />
         ) : activeTab === 3 ? (
-          <LeadCalls />
+          <LeadCalls searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'call')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="lead" entityId={id} />
         ) : activeTab === 4 ? (
-          <LeadTasks />
+          <LeadTasks searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'task')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="lead" entityId={id} />
         ) : activeTab === 5 ? (
-          <LeadMeetings />
+          <LeadMeetings searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'meeting')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="lead" entityId={id} />
         ) : null}
 
       </Box>
@@ -458,12 +409,12 @@ const LeadDetailPage = () => {
             <Typography variant="subtitle2" fontWeight={700} color={PRIMARY}>AI Lead Summary</Typography>
           </Stack>
           <Typography variant="body2" color="#1e293b" fontSize="13px" lineHeight={1.5}>
-            There are no activities associated with this lead and further details are needed to provide a comprehensive summary.
+            {aiSummary}
           </Typography>
         </Paper>
 
         {/* Attachments */}
-        <AttachmentsSection />
+        <AttachmentsSection files={files} onFilesChange={setFiles} />
       </Box>
 
       {/* Tracked Email Modal */}
@@ -471,6 +422,7 @@ const LeadDetailPage = () => {
         open={composeOpen}
         onClose={() => setComposeOpen(false)}
         leadId={id}
+        attachedFiles={files.map(f => f.file)}
       />
       {/* Edit Lead Drawer */}
       <CreateLead
@@ -489,6 +441,14 @@ const LeadDetailPage = () => {
           console.log("Updated lead:", updatedLead);
           // In a real app, update state or refetch data here
         }}
+      />
+
+      <ConvertLeadModal
+        open={isConvertModalOpen}
+        onClose={() => setIsConvertModalOpen(false)}
+        onConvert={handleConvert}
+        leadName={lead.name}
+        isConverting={isConverting}
       />
     </Box>
   );

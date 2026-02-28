@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Lead, Company, Deal, Ticket
+from .models import Lead, Company, Deal, Ticket, ActivityLog
 
 class LeadSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,3 +24,9 @@ class TicketSerializer(serializers.ModelSerializer):
         model = Ticket
         fields = '__all__'
         read_only_fields = ('user',)
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityLog
+        fields = '__all__'
+        read_only_fields = ('user', 'created_at')

@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import AppInput from "../../components/form/AppInput";
 import AppSelect from "../../components/form/AppSelect";
 import { useForm } from "../../hooks/useForm";
+import { getCurrentUser } from "../../api/authService";
 import { useToast } from "../../hooks/useToast";
 import {
     Box,
@@ -17,7 +18,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
-const STATUS = ["New", "Open", "In Progress", "Lost", "Bad Info"];
+const STATUS = ["New", "Open", "In Progress", "Qualified", "Lost", "Bad Info"];
 
 // Simple Flag Icon Component
 const FlagIcon = () => (
@@ -36,7 +37,7 @@ const INITIAL_VALUES = {
     email: "",
     phone: "",
     title: "",
-    owner: "",
+    owner: [],
     status: "",
 };
 
@@ -67,17 +68,39 @@ export default function CreateLead({ open, onClose, onSave, editData }) {
         validate
     );
 
+    const currentUser = getCurrentUser();
+    const currentUserName = currentUser ? (`${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email) : "";
+
     // Populate form on edit
     useEffect(() => {
         if (editData) {
-            setValues(editData);
+            setValues({
+                ...editData,
+                owner: editData.owner ? (typeof editData.owner === 'string' ? editData.owner.split(',').map(s => s.trim()) : editData.owner) : [],
+            });
         } else {
             resetForm();
+            if (currentUserName) {
+                setValues(prev => ({ ...prev, owner: [currentUserName] }));
+            }
         }
-    }, [editData, open, setValues, resetForm]);
+    }, [editData, open, setValues, resetForm, currentUserName]);
+
+    const MOCK_OWNERS = ["Jane Cooper", "Wade Warren", "Brooklyn Simmons"];
+    const ownerOptions = [...MOCK_OWNERS];
+    if (currentUserName && !ownerOptions.includes(currentUserName)) {
+        ownerOptions.unshift(currentUserName);
+    }
+    (values.owner || []).forEach(o => {
+        if (!ownerOptions.includes(o)) ownerOptions.push(o);
+    });
 
     const onSubmit = (formData) => {
-        onSave(formData);
+        const payload = {
+            ...formData,
+            owner: Array.isArray(formData.owner) ? formData.owner.join(", ") : formData.owner,
+        };
+        onSave(payload);
         toast.success(editData ? "Lead updated successfully" : "Lead created successfully");
         onClose();
     };
@@ -202,14 +225,12 @@ export default function CreateLead({ open, onClose, onSave, editData }) {
                         <AppSelect
                             label="Contact Owner"
                             name="owner"
+                            multiple
                             value={values.owner}
                             onChange={handleChange}
                             placeholder="Choose"
-                        >
-                            <MenuItem value="Jane Cooper">Jane Cooper</MenuItem>
-                            <MenuItem value="Wade Warren">Wade Warren</MenuItem>
-                            <MenuItem value="Brooklyn Simmons">Brooklyn Simmons</MenuItem>
-                        </AppSelect>
+                            options={ownerOptions}
+                        />
 
                         {/* City */}
                         <AppInput
@@ -228,6 +249,7 @@ export default function CreateLead({ open, onClose, onSave, editData }) {
                             onChange={handleChange}
                             placeholder="Choose"
                             options={STATUS}
+                            disabled={editData?.status === "Converted"}
                         />
                     </Stack>
                 </Box>

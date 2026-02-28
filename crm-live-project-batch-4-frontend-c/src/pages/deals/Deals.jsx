@@ -60,15 +60,22 @@ export default function Deals() {
     const filteredRows = useMemo(() => {
         const q = search.toLowerCase();
         return deals.filter((r) => {
+            const name = r.name || "";
+            const owner = r.owner || "";
+            const stage = r.stage || "";
+            const amount = String(r.amount || "");
+
             const matchesSearch =
                 !q ||
-                r.name.toLowerCase().includes(q) ||
-                r.owner.toLowerCase().includes(q);
+                name.toLowerCase().includes(q) ||
+                owner.toLowerCase().includes(q) ||
+                stage.toLowerCase().includes(q) ||
+                amount.toLowerCase().includes(q);
 
             const matchesOwner = !filters.owner || r.owner === filters.owner;
             const matchesStage = !filters.stage || r.stage === filters.stage;
-            const matchesCloseDate = !filters.closeDate || r.closeDate.includes(filters.closeDate);
-            const matchesCreated = !filters.created || r.created.includes(filters.created);
+            const matchesCloseDate = !filters.closeDate || (r.closeDate || "").includes(filters.closeDate);
+            const matchesCreated = !filters.created || (r.created || "").includes(filters.created);
 
             return matchesSearch && matchesOwner && matchesStage && matchesCloseDate && matchesCreated;
         });
@@ -398,6 +405,7 @@ export default function Deals() {
                 />
 
                 <CreateDeal
+                    key={drawerOpen ? `edit-${editData?.id || 'new'}` : 'closed'}
                     open={drawerOpen}
                     onClose={() => setDrawerOpen(false)}
                     onSave={handleSave}

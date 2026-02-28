@@ -4,14 +4,10 @@ import EntityDrawer from "../../components/common/EntityDrawer";
 import AppInput from "../../components/form/AppInput";
 import AppSelect from "../../components/form/AppSelect";
 import { useForm } from "../../hooks/useForm";
+import { getCurrentUser } from "../../api/authService";
 import { useToast } from "../../hooks/useToast";
-// Assuming contexts exist, otherwise we mock for now or importing them if I confirmed they exist.
-// I'll stick to mocks for dropdown options if contexts aren't easily verified in one go, but ideally I should use them.
-// Given previous patterns, I'll use MOCK lists for Companies/Deals to avoid context dependency issues if file paths are wrong, 
-// OR I can just assume they might exist.
-// Safest bet for "Refactoring" without breaking is to use the existing data or mocks if not provided.
-// The prompt implies I should "integrate" but if I don't have the data, I will use placeholders.
-// Actually, I'll add the fields and Use Mocks for the dropdowns to ensure UI works.
+import { useCompanies } from "../../context/CompaniesContext";
+import { useDeals } from "../../context/DealsContext";
 
 const TICKET_STATUSES = [
     { value: "New", label: "New" },
@@ -45,24 +41,13 @@ const OWNERS = [
     { value: "Cameron Williamson", label: "Cameron Williamson" },
 ];
 
-// Mock Data for Associations
-const COMPANIES = [
-    { value: "1", label: "Acme Corp" },
-    { value: "2", label: "Global Tech" },
-];
-
-const DEALS = [
-    { value: "1", label: "Big Merger" },
-    { value: "2", label: "Software License" },
-];
-
 const INITIAL_FORM_STATE = {
     title: "",
     description: "",
     status: "",
     source: "",
     priority: "",
-    owner: "",
+    owner: [],
     associationType: "company", // 'company' or 'deal'
     companyId: "",
     dealId: "",
@@ -89,6 +74,8 @@ const validate = (values) => {
 
 export default function CreateTicket({ open, onClose, onSave, editData }) {
     const toast = useToast();
+    const { companies } = useCompanies();
+    const { deals } = useDeals();
 
     const {
         values,
@@ -99,6 +86,9 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
         resetForm,
     } = useForm(INITIAL_FORM_STATE, true, validate);
 
+    const currentUser = getCurrentUser();
+    const currentUserName = currentUser ? (`${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email) : "";
+
     useEffect(() => {
         if (editData) {
             setValues({
@@ -107,15 +97,26 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
                 status: editData.status || "",
                 source: editData.source || "",
                 priority: editData.priority || "",
-                owner: editData.owner || "",
+                owner: editData.owner ? (typeof editData.owner === 'string' ? editData.owner.split(',').map(s => s.trim()) : editData.owner) : [],
                 associationType: editData.dealId ? "deal" : "company",
                 companyId: editData.companyId || "",
                 dealId: editData.dealId || "",
             });
         } else {
             resetForm();
+            if (currentUserName) {
+                setValues(prev => ({ ...prev, owner: [currentUserName] }));
+            }
         }
-    }, [editData, open, setValues, resetForm]);
+    }, [editData, open, setValues, resetForm, currentUserName]);
+
+    const ownerOptions = OWNERS.map(o => o.value);
+    if (currentUserName && !ownerOptions.includes(currentUserName)) {
+        ownerOptions.unshift(currentUserName);
+    }
+    (values.owner || []).forEach(o => {
+        if (!ownerOptions.includes(o)) ownerOptions.push(o);
+    });
 
     const handleAssociationTypeChange = (e) => {
         const type = e.target.value;
@@ -131,6 +132,7 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
         // Ensure exclusivity in final data (UI handles it but good to be safe)
         const finalData = {
             ...formData,
+            owner: Array.isArray(formData.owner) ? formData.owner.join(", ") : formData.owner,
             companyId: formData.associationType === "company" ? formData.companyId : null,
             dealId: formData.associationType === "deal" ? formData.dealId : null,
         };
@@ -246,11 +248,12 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
                     <AppSelect
                         label="Ticket Owner"
                         required
+                        multiple
                         placeholder="Choose"
                         name="owner"
                         value={values.owner}
                         onChange={handleChange}
-                        options={OWNERS.map(o => o.value)}
+                        options={ownerOptions}
                         error={errors.owner}
                         helperText={errors.owner}
                     />
@@ -280,17 +283,7 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
                             name="companyId"
                             value={values.companyId}
                             onChange={handleChange}
-                            options={COMPANIES.map(c => c.value)}
-                            // In real app, map value to label differently if needed, AppSelect usually takes string or object. 
-                            // Assuming AppSelect handles array of strings or simple values.
-                            // Since COMPANIES is array of {value, label}, I might need to adjust AppSelect usage if it expects just strings.
-                            // Looking at Company.jsx/CreateCompany.jsx usage, it seems AppSelect expects `options` as array of strings or objects?
-                            // Let's check AppSelect implementation if possible, or just pass values.
-                            // Re-reading CreateLead.jsx usage: `options={LEAD_STATUSES}` where LEAD_STATUSES is array of objects? No, looking closely at CreateLead.jsx code I wrote...
-                            // `options={LEAD_STATUSES}` where LEAD_STATUSES = [{value, label}]. 
-                            // Wait, in CreateLead.jsx I used `options={["New", ...]}` (simple strings) in my replacement? 
-                            // Let's check CreateDeal.jsx replacement content: `options={DEAL_STAGES.map(s => s.value)}`. So it expects strings.
-                            // Okay, I will pass strings and use mock strings.
+                            options={companies.map(c => ({ value: c.id, label: c.name }))}
                             error={errors.companyId}
                             helperText={errors.companyId}
                         />
@@ -304,7 +297,7 @@ export default function CreateTicket({ open, onClose, onSave, editData }) {
                             name="dealId"
                             value={values.dealId}
                             onChange={handleChange}
-                            options={DEALS.map(d => d.value)}
+                            options={deals.map(d => ({ value: d.id, label: d.name }))}
                             error={errors.dealId}
                             helperText={errors.dealId}
                         />

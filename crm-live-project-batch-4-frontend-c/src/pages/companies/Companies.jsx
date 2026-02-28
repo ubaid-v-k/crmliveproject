@@ -60,18 +60,27 @@ export default function Companies() {
     const filteredRows = useMemo(() => {
         const q = search.toLowerCase();
         return companies.filter((r) => {
+            const name = r.name || "";
+            const city = r.city || "";
+            const owner = r.owner || "";
+            const phone = r.phone || "";
+            const industry = r.industry || "";
+            const country = r.country || "";
+
             const matchesSearch =
                 !q ||
-                r.name.toLowerCase().includes(q) ||
-                r.city.toLowerCase().includes(q) ||
-                r.owner.toLowerCase().includes(q) ||
-                r.phone.includes(q);
+                name.toLowerCase().includes(q) ||
+                city.toLowerCase().includes(q) ||
+                owner.toLowerCase().includes(q) ||
+                phone.toLowerCase().includes(q) ||
+                industry.toLowerCase().includes(q) ||
+                country.toLowerCase().includes(q);
 
             const matchesIndustry = !filters.industry || r.industry === filters.industry;
             const matchesCity = !filters.city || r.city === filters.city;
             const matchesCountry = !filters.country || r.country === filters.country;
             const matchesStatus = !filters.status || r.status === filters.status;
-            const matchesCreated = !filters.created || r.created.includes(filters.created);
+            const matchesCreated = !filters.created || (r.created || "").includes(filters.created);
 
             return matchesSearch && matchesIndustry && matchesCity && matchesCountry && matchesStatus && matchesCreated;
         });
@@ -85,10 +94,10 @@ export default function Companies() {
 
     /* ================= HELPERS FOR FILTERS ================= */
     // Extract unique values for dropdowns
-    const uniqueIndustries = [...new Set(companies.map(c => c.industry))];
-    const uniqueCities = [...new Set(companies.map(c => c.city))];
-    const uniqueCountries = [...new Set(companies.map(c => c.country))];
-    const uniqueStatuses = [...new Set(companies.map(c => c.status))];
+    const uniqueIndustries = [...new Set(companies.map(c => c.industry))].filter(Boolean);
+    const uniqueCities = [...new Set(companies.map(c => c.city))].filter(Boolean);
+    const uniqueCountries = [...new Set(companies.map(c => c.country))].filter(Boolean);
+    const uniqueStatuses = [...new Set(companies.map(c => c.status))].filter(Boolean);
 
     /* ================= HANDLERS ================= */
     const handleSelectAll = (e) => {

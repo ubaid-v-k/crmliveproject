@@ -21,30 +21,9 @@ import {
     Delete as DeleteIcon
 } from "@mui/icons-material";
 import CreateMeeting from "./CreateMeeting";
+import { createActivity } from "../../api/activities.api";
 
-const MOCK_MEETINGS = [
-    {
-        id: 1,
-        title: "Meeting Maria Johnson and Jane Cooper",
-        description: "Let's discuss our new product line.",
-        date: "June 24, 2025 at 5:30PM",
-        duration: "1 hr",
-        attendees: 2,
-        organizer: "Maria",
-    },
-    {
-        id: 2,
-        title: "Meeting Maria Johnson and Jane Cooper",
-        description: "Organized by Maria",
-        date: "June 24, 2025 at 5:30PM",
-        duration: "1 hr",
-        attendees: 2,
-        organizer: "Maria",
-    }
-];
-
-export default function LeadMeetings() {
-    const [meetings, setMeetings] = useState(MOCK_MEETINGS);
+export default function LeadMeetings({ searchQuery = "", activities = [], entityType, entityId, refreshActivities }) {
     const [expanded, setExpanded] = useState({ 1: true });
     const [isCreateOpen, setCreateOpen] = useState(false);
 
@@ -82,35 +61,26 @@ export default function LeadMeetings() {
         handleMenuClose();
     };
 
-    const handleSaveMeeting = (meetingData) => {
+    const handleSaveMeeting = async (meetingData) => {
         if (editMeetingData) {
             // Update
-            setMeetings(prev => prev.map(m =>
-                m.id === editMeetingData.id
-                    ? {
-                        ...m,
-                        title: meetingData.title,
-                        description: meetingData.note,
-                        date: `${meetingData.startDate} at ${meetingData.startTime}`,
-                        attendees: meetingData.attendees.length,
-                        organizer: "You" // Keeping simple
-                    }
-                    : m
-            ));
             setEditMeetingData(null);
         } else {
             // Create
-            const newMeeting = {
-                id: Date.now(),
-                title: meetingData.title,
-                description: meetingData.note,
-                date: `${meetingData.startDate} at ${meetingData.startTime}`,
-                duration: "1 hr",
-                attendees: meetingData.attendees.length,
-                organizer: "You"
-            };
-            setMeetings(prev => [newMeeting, ...prev]);
-            setExpanded(prev => ({ ...prev, [newMeeting.id]: true }));
+            try {
+                await createActivity({
+                    type: "meeting",
+                    subject: meetingData.title,
+                    description: meetingData.note,
+                    dueDate: meetingData.startDate && meetingData.startTime ? `${meetingData.startDate}T${meetingData.startTime}:00` : null,
+                    [entityType]: entityId
+                });
+                if (refreshActivities) {
+                    refreshActivities();
+                }
+            } catch (error) {
+                console.error("Failed to create meeting", error);
+            }
         }
         setCreateOpen(false);
     };
@@ -119,6 +89,37 @@ export default function LeadMeetings() {
         setCreateOpen(false);
         setEditMeetingData(null);
     };
+
+    // Filter meetings based on search query
+    const parsedMeetings = activities.filter(a => a.type === "meeting").map(activity => {
+        let displayDate = activity.dueDate;
+
+        if (activity.dueDate) {
+            const dateObj = new Date(activity.dueDate);
+            displayDate = dateObj.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' });
+        }
+
+        return {
+            id: activity.id,
+            title: activity.subject || "Unnamed Meeting",
+            description: activity.description,
+            date: displayDate,
+            rawDate: activity.dueDate,
+            organizer: activity.user || "System",
+            attendees: 1, // Placeholder
+            duration: "1 hr" // Placeholder
+        }
+    });
+
+    const filteredMeetings = parsedMeetings.filter((meeting) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            (meeting.title && meeting.title.toLowerCase().includes(query)) ||
+            (meeting.description && meeting.description.toLowerCase().includes(query)) ||
+            (meeting.organizer && meeting.organizer.toLowerCase().includes(query))
+        );
+    });
 
     return (
         <Box>
@@ -175,7 +176,7 @@ export default function LeadMeetings() {
             </Stack>
 
             <Stack spacing={2}>
-                {meetings.map((meeting) => (
+                {filteredMeetings.map((meeting) => (
                     <Paper
                         key={meeting.id}
                         elevation={0}

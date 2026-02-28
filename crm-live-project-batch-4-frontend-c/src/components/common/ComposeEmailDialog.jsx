@@ -41,7 +41,7 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-export default function ComposeEmailDialog({ open, onClose, leadId }) {
+export default function ComposeEmailDialog({ open, onClose, leadId, attachedFiles = [] }) {
     const TARGET_EMAIL = "ferraricrm30@gmail.com";
 
     const [subject, setSubject] = useState("");
@@ -56,11 +56,11 @@ export default function ComposeEmailDialog({ open, onClose, leadId }) {
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
 
-    const handleFileChange = (e) => {
-        if (e.target.files.length > 0) {
-            setAttachments(prev => [...prev, ...Array.from(e.target.files)]);
+    React.useEffect(() => {
+        if (open) {
+            setAttachments(attachedFiles);
         }
-    };
+    }, [open]);
 
     const handleRemoveAttachment = (index) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
@@ -360,28 +360,13 @@ export default function ComposeEmailDialog({ open, onClose, leadId }) {
                         <IconButton size="small" onClick={() => triggerCommand("underline")}>
                             <FormatUnderlinedIcon fontSize="small" sx={{ color: "inherit" }} />
                         </IconButton>
-                        <IconButton size="small" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-                            <AttachFileIcon fontSize="small" sx={{ color: "inherit" }} />
-                        </IconButton>
                         <IconButton size="small" onClick={handleLink}>
                             <LinkIcon fontSize="small" sx={{ color: "inherit" }} />
                         </IconButton>
                         <IconButton size="small" onClick={insertEmoji}>
                             <EmojiEmotionsOutlinedIcon fontSize="small" sx={{ color: "inherit" }} />
                         </IconButton>
-                        <IconButton size="small" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-                            <ImageIcon fontSize="small" sx={{ color: "inherit" }} />
-                        </IconButton>
                     </Stack>
-
-                    {/* Hidden File Input */}
-                    <input
-                        type="file"
-                        multiple
-                        ref={fileInputRef}
-                        style={{ display: "none" }}
-                        onChange={handleFileChange}
-                    />
                 </Box>
 
                 {/* Trash Icon */}

@@ -57,11 +57,14 @@ export default function AppSelect({
                         {placeholder}
                     </MenuItem>
 
-                    {children ? children : options.map((opt) => {
+                    {children ? children : options.map((opt, index) => {
+                        if (opt === null || opt === undefined) return null;
                         const val = typeof opt === 'object' ? opt.value : opt;
                         const lbl = typeof opt === 'object' ? opt.label : opt;
+                        // Fallback to index if val is somehow undefined
+                        const key = val !== undefined && val !== null ? val : index;
                         return (
-                            <MenuItem key={val} value={val}>
+                            <MenuItem key={key} value={val}>
                                 {lbl}
                             </MenuItem>
                         );

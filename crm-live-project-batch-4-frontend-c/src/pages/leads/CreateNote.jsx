@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     Box,
     Stack,
@@ -6,8 +6,9 @@ import {
     IconButton,
     Button,
     Drawer,
-    InputBase,
     Divider,
+    Menu,
+    MenuItem
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import FormatBoldIcon from "@mui/icons-material/FormatBold";
@@ -20,22 +21,78 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 export default function CreateNote({ open, onClose, onSave, initialData }) {
     const [note, setNote] = useState("");
+    const editorRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     // Effect to set initial data when drawer opens or data changes
-    React.useEffect(() => {
+    useEffect(() => {
         if (open) {
-            setNote(initialData || "");
+            const initial = initialData || "";
+            setNote(initial);
+            if (editorRef.current) {
+                editorRef.current.innerHTML = initial;
+            }
         }
     }, [open, initialData]);
 
     const handleSave = () => {
-        onSave(note);
+        // use content from editor as the final note if possible to avoid state lag
+        const finalNote = editorRef.current ? editorRef.current.innerHTML : note;
+        onSave(finalNote);
         setNote(""); // Reset after save
+        if (editorRef.current) {
+            editorRef.current.innerHTML = "";
+        }
     };
 
-    const ToolbarButton = ({ children }) => (
+    // Rich Text Commands
+    const execCmd = (command, value = null) => {
+        document.execCommand(command, false, value);
+    };
+
+    const handleContentChange = () => {
+        if (editorRef.current) {
+            setNote(editorRef.current.innerHTML);
+        }
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imgDataUrl = event.target.result;
+                // Focus editor just in case
+                if (editorRef.current) editorRef.current.focus();
+                // Create an img tag, we can optionally wrap logic or style inline
+                const imgTag = `<br/><img src="${imgDataUrl}" style="max-width: 100%; border-radius: 8px; margin-top: 8px;" /><br/>`;
+                execCmd('insertHTML', imgTag);
+            };
+            reader.readAsDataURL(file);
+        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    // Format Dropdown
+    const [anchorEl, setAnchorEl] = useState(null);
+    const handleFormatMenuClick = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleFormatMenuClose = () => {
+        setAnchorEl(null);
+    };
+    const applyFormatBlock = (tag) => {
+        execCmd('formatBlock', tag);
+        handleFormatMenuClose();
+    };
+
+    const ToolbarButton = ({ children, onClick }) => (
         <IconButton
             size="small"
+            onMouseDown={(e) => {
+                e.preventDefault(); // Prevent losing focus on editor
+                if (onClick) onClick();
+            }}
             sx={{
                 color: "#64748b",
                 padding: "4px",
@@ -88,7 +145,7 @@ export default function CreateNote({ open, onClose, onSave, initialData }) {
                         Note <span style={{ color: "#ef4444" }}>*</span>
                     </Typography>
 
-                    {/* Rich Text Editor Mock Container */}
+                    {/* Rich Text Editor Container */}
                     <Box
                         sx={{
                             border: "1px solid #e2e8f0",
@@ -96,7 +153,7 @@ export default function CreateNote({ open, onClose, onSave, initialData }) {
                             overflow: "hidden",
                             display: "flex",
                             flexDirection: "column",
-                            height: "300px", // Fixed height for editor feel
+                            height: "300px",
                             "&:focus-within": {
                                 borderColor: "#5B4DDB",
                                 boxShadow: "0 0 0 2px rgba(91, 77, 219, 0.1)"
@@ -115,53 +172,75 @@ export default function CreateNote({ open, onClose, onSave, initialData }) {
                                 p: 1,
                             }}
                         >
-                            {/* Font Style Dropdown Mock */}
+                            {/* Font Style Dropdown */}
                             <Stack
                                 direction="row"
                                 alignItems="center"
                                 spacing={0.5}
+                                onClick={handleFormatMenuClick}
                                 sx={{
                                     cursor: "pointer",
                                     mr: 1,
                                     color: "#64748b",
                                     fontSize: "13px",
-                                    fontWeight: 500
+                                    fontWeight: 500,
+                                    "&:hover": { color: "#334155" }
                                 }}
                             >
                                 <Typography variant="caption" fontSize="13px">Normal text</Typography>
                                 <KeyboardArrowDownIcon fontSize="small" />
                             </Stack>
+                            <Menu
+                                anchorEl={anchorEl}
+                                open={Boolean(anchorEl)}
+                                onClose={handleFormatMenuClose}
+                            >
+                                <MenuItem onClick={() => applyFormatBlock('P')}>Normal text</MenuItem>
+                                <MenuItem onClick={() => applyFormatBlock('H1')}><Typography variant="h5">Heading 1</Typography></MenuItem>
+                                <MenuItem onClick={() => applyFormatBlock('H2')}><Typography variant="h6">Heading 2</Typography></MenuItem>
+                            </Menu>
 
                             <Divider orientation="vertical" flexItem sx={{ height: 20, my: "auto" }} />
 
-                            <ToolbarButton><FormatBoldIcon fontSize="small" /></ToolbarButton>
-                            <ToolbarButton><FormatItalicIcon fontSize="small" /></ToolbarButton>
-                            <ToolbarButton><FormatUnderlinedIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => execCmd('bold')}><FormatBoldIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => execCmd('italic')}><FormatItalicIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => execCmd('underline')}><FormatUnderlinedIcon fontSize="small" /></ToolbarButton>
 
                             <Divider orientation="vertical" flexItem sx={{ height: 20, my: "auto" }} />
 
-                            <ToolbarButton><FormatListBulletedIcon fontSize="small" /></ToolbarButton>
-                            <ToolbarButton><FormatListNumberedIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => execCmd('insertUnorderedList')}><FormatListBulletedIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => execCmd('insertOrderedList')}><FormatListNumberedIcon fontSize="small" /></ToolbarButton>
 
                             <Divider orientation="vertical" flexItem sx={{ height: 20, my: "auto" }} />
 
-                            <ToolbarButton><ImageIcon fontSize="small" /></ToolbarButton>
+                            <ToolbarButton onClick={() => fileInputRef.current?.click()}><ImageIcon fontSize="small" /></ToolbarButton>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                ref={fileInputRef}
+                                onChange={handleImageUpload}
+                            />
                         </Stack>
 
                         {/* Editor Content Area */}
-                        <InputBase
-                            multiline
-                            placeholder="Enter"
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
+                        <Box
+                            ref={editorRef}
+                            contentEditable
+                            onInput={handleContentChange}
+                            onBlur={handleContentChange}
                             sx={{
                                 p: 2,
                                 flex: 1,
-                                alignItems: "flex-start",
+                                overflowY: "auto",
                                 fontSize: "14px",
                                 color: "#334155",
-                                overflowY: "auto",
-                                "& textarea": { height: "100% !important" }
+                                outline: "none",
+                                '&:empty:before': {
+                                    content: '"Enter note here..."',
+                                    color: '#94a3b8',
+                                    pointerEvents: 'none',
+                                },
                             }}
                         />
                     </Box>
@@ -196,7 +275,7 @@ export default function CreateNote({ open, onClose, onSave, initialData }) {
                     <Button
                         variant="contained"
                         onClick={handleSave}
-                        disabled={!note.trim()}
+                        disabled={!note.trim() && (!editorRef.current || !editorRef.current.innerText.trim())}
                         sx={{
                             width: "48%",
                             backgroundColor: "#5B4DDB",

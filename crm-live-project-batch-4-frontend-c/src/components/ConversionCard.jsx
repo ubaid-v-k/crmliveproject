@@ -4,7 +4,7 @@ export default function ConversionCard({ data = [] }) {
 
   return (
     <div className="card conversion-card ">
-      <h6 className="conversion-title" style={{ fontSize: '18px', fontWeight: '800', color: '#1f2937', marginBottom: '24px' }}>
+      <h6 className="conversion-title" style={{ fontSize: '16px', fontWeight: '700', color: '#111827', marginBottom: '24px' }}>
         Contact to Deal Conversion
       </h6>
 

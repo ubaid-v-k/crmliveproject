@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import AppInput from "../../components/form/AppInput";
 import AppSelect from "../../components/form/AppSelect";
 import { useForm } from "../../hooks/useForm";
+import { getCurrentUser } from "../../api/authService";
 import { useToast } from "../../hooks/useToast";
 import {
     Box,
@@ -45,7 +46,7 @@ const FlagIcon = () => (
 const INITIAL_VALUES = {
     domain: "",
     name: "",
-    owner: "",
+    owner: [],
     industry: "",
     type: "",
     city: "",
@@ -83,16 +84,42 @@ export default function CreateCompany({ open, onClose, onSave, editData }) {
         validate
     );
 
+    const currentUser = getCurrentUser();
+    const currentUserName = currentUser ? (`${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.email) : "";
+
     useEffect(() => {
         if (editData) {
-            setValues(editData);
+            setValues({
+                ...editData,
+                owner: editData.owner ? (typeof editData.owner === 'string' ? editData.owner.split(',').map(s => s.trim()) : editData.owner) : [],
+            });
         } else {
             resetForm();
+            if (currentUserName) {
+                setValues(prev => ({ ...prev, owner: [currentUserName] }));
+            }
         }
-    }, [editData, open, setValues, resetForm]);
+    }, [editData, open, setValues, resetForm, currentUserName]);
+
+    const MOCK_OWNERS = [
+        "Jane Cooper", "Wade Warren", "Brooklyn Simmons",
+        "Leslie Alexander", "Jenny Wilson", "Guy Hawkins",
+        "Robert Fox", "Cameron Williamson"
+    ];
+    const ownerOptions = [...MOCK_OWNERS];
+    if (currentUserName && !ownerOptions.includes(currentUserName)) {
+        ownerOptions.unshift(currentUserName);
+    }
+    (values.owner || []).forEach(o => {
+        if (!ownerOptions.includes(o)) ownerOptions.push(o);
+    });
 
     const onSubmit = (formData) => {
-        onSave(formData);
+        const payload = {
+            ...formData,
+            owner: Array.isArray(formData.owner) ? formData.owner.join(", ") : formData.owner,
+        };
+        onSave(payload);
         toast.success(editData ? "Company updated successfully" : "Company created successfully");
         onClose();
     };
@@ -158,22 +185,15 @@ export default function CreateCompany({ open, onClose, onSave, editData }) {
                         <AppSelect
                             label="Company Owner"
                             required
+                            multiple
                             name="owner"
                             value={values.owner}
                             onChange={handleChange}
                             placeholder="Enter"
+                            options={ownerOptions}
                             error={errors.owner}
                             helperText={errors.owner}
-                        >
-                            <MenuItem value="Jane Cooper">Jane Cooper</MenuItem>
-                            <MenuItem value="Wade Warren">Wade Warren</MenuItem>
-                            <MenuItem value="Brooklyn Simmons">Brooklyn Simmons</MenuItem>
-                            <MenuItem value="Leslie Alexander">Leslie Alexander</MenuItem>
-                            <MenuItem value="Jenny Wilson">Jenny Wilson</MenuItem>
-                            <MenuItem value="Guy Hawkins">Guy Hawkins</MenuItem>
-                            <MenuItem value="Robert Fox">Robert Fox</MenuItem>
-                            <MenuItem value="Cameron Williamson">Cameron Williamson</MenuItem>
-                        </AppSelect>
+                        />
 
                         {/* Row: Industry & Type */}
                         <Stack direction="row" spacing={2}>

@@ -7,6 +7,11 @@ class Lead(models.Model):
     last_name = models.CharField(max_length=100)
     email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True, null=True)
+    company = models.CharField(max_length=255, blank=True, null=True)
+    job_title = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    owner_name = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=50, default='New')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -17,8 +22,16 @@ class Lead(models.Model):
 class Company(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='companies')
     name = models.CharField(max_length=255)
+    owner_name = models.CharField(max_length=100, blank=True, null=True)
+    phone = models.CharField(max_length=50, blank=True, null=True)
     industry = models.CharField(max_length=100, blank=True, null=True)
+    type = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, blank=True, null=True)
+    employees = models.CharField(max_length=50, blank=True, null=True)
+    revenue = models.CharField(max_length=100, blank=True, null=True)
     website = models.URLField(blank=True, null=True)
+    status = models.CharField(max_length=50, default='Active')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -30,9 +43,12 @@ class Deal(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     stage = models.CharField(max_length=100, default='Prospecting')
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name='deals')
+    contact_email = models.EmailField(blank=True, null=True)
+    contact_phone = models.CharField(max_length=20, blank=True, null=True)
     priority = models.CharField(max_length=50, default='Medium')
     close_date = models.DateField(null=True, blank=True)
     owner_name = models.CharField(max_length=100, blank=True, null=True)
+    lead_reference = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True, related_name='converted_deals')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -63,6 +79,8 @@ class ActivityLog(models.Model):
     activity_type = models.CharField(max_length=50) # 'email', 'call', 'note', 'task', 'meeting'
     subject = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=50, default='pending') # Used primarily for tasks: 'pending', 'completed'
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -17,6 +17,7 @@ import {
     KeyboardArrowDown as ArrowDownIcon,
     KeyboardArrowRight as ArrowRightIcon,
     RadioButtonUnchecked as UncheckedIcon,
+    CheckCircleOutlined as CheckIcon,
     TaskOutlined as TaskIcon,
     DateRange as DateRangeIcon,
     MoreVert as MoreVertIcon,
@@ -24,32 +25,10 @@ import {
     Delete as DeleteIcon
 } from "@mui/icons-material";
 import CreateTask from "./CreateTask";
+import { createActivity } from "../../api/activities.api";
+import axios from "axios";
 
-const MOCK_TASKS = [
-    {
-        id: 1,
-        assignedTo: "Maria Johnson",
-        title: "Prepare quote for Jane Cooper",
-        dueDate: "June 24, 2025 at 5:30PM",
-        priority: "High",
-        type: "To-Do",
-        note: "He's interested in our new product line and wants our very best price. Please include a detailed breakdown of costs.",
-        status: "overdue",
-    },
-    {
-        id: 2,
-        assignedTo: "Maria Johnson",
-        title: "Prepare quote for Jane Cooper",
-        dueDate: "June 24, 2025 at 5:30PM",
-        priority: "Medium",
-        type: "To-Do",
-        note: "Description here...",
-        status: "overdue",
-    }
-];
-
-export default function LeadTasks() {
-    const [tasks, setTasks] = useState(MOCK_TASKS);
+export default function LeadTasks({ searchQuery = "", activities = [], entityType, entityId, refreshActivities }) {
     const [expanded, setExpanded] = useState({ 1: true });
     const [isCreateOpen, setCreateOpen] = useState(false);
 
@@ -87,37 +66,36 @@ export default function LeadTasks() {
         handleMenuClose();
     };
 
-    const handleSaveTask = (taskData) => {
+    const handleSaveTask = async (taskData) => {
         if (editTaskData) {
-            // Update existing
-            setTasks(prev => prev.map(t =>
-                t.id === editTaskData.id
-                    ? {
-                        ...t,
-                        assignedTo: taskData.assignedTo,
-                        title: taskData.title,
-                        dueDate: `${taskData.dueDate} at ${taskData.time}`,
-                        priority: taskData.priority,
-                        type: taskData.type,
-                        note: taskData.note,
-                    }
-                    : t
-            ));
+            // Update logic (TBD if edit API exists)
             setEditTaskData(null);
         } else {
             // Create new
-            const newTask = {
-                id: Date.now(),
-                assignedTo: taskData.assignedTo,
-                title: taskData.title,
-                dueDate: `${taskData.dueDate} at ${taskData.time}`,
-                priority: taskData.priority,
-                type: taskData.type,
-                note: taskData.note,
-                status: "pending"
-            };
-            setTasks(prev => [newTask, ...prev]);
-            setExpanded(prev => ({ ...prev, [newTask.id]: true }));
+            try {
+                // Determine if task is overdue immediately (simple logic for now)
+                let taskStatus = "pending";
+                if (taskData.dueDate && taskData.time) {
+                    const dueDateTime = new Date(`${taskData.dueDate}T${taskData.time}`);
+                    if (dueDateTime < new Date()) {
+                        taskStatus = "overdue";
+                    }
+                }
+
+                await createActivity({
+                    type: "task",
+                    subject: taskData.title,
+                    description: taskData.note,
+                    dueDate: taskData.dueDate ? `${taskData.dueDate}T${taskData.time || "00:00:00"}` : null,
+                    [entityType]: entityId,
+                    status: taskStatus
+                });
+                if (refreshActivities) {
+                    refreshActivities();
+                }
+            } catch (error) {
+                console.error("Failed to create task", error);
+            }
         }
         setCreateOpen(false);
     };
@@ -126,6 +104,59 @@ export default function LeadTasks() {
         setCreateOpen(false);
         setEditTaskData(null);
     };
+
+    const handleCompleteTask = async (taskId) => {
+        try {
+            const token = localStorage.getItem("crm_user_token");
+            await axios.patch(`http://localhost:8000/api/core/activities/${taskId}/`, { status: "completed" }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (refreshActivities) {
+                refreshActivities();
+            }
+        } catch (error) {
+            console.error("Failed to complete task", error);
+        }
+    };
+
+    // Filter tasks based on search query
+    // In our backend, activities arrays likely contains ALL activities. We need to filter by activity_type="task"
+    const parsedTasks = activities.filter(a => a.type === "task").map(activity => {
+        // Map backend format to frontend format
+        let status = activity.status || "pending";
+        let displayDueDate = activity.dueDate;
+
+        if (activity.dueDate) {
+            const dateObj = new Date(activity.dueDate);
+            displayDueDate = dateObj.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' });
+
+            if (dateObj < new Date() && status !== "completed") {
+                status = "overdue";
+            }
+        }
+
+        return {
+            id: activity.id,
+            title: activity.subject || "Unnamed Task",
+            note: activity.description,
+            dueDate: displayDueDate,
+            rawDueDate: activity.dueDate,
+            assignedTo: activity.user || "System",
+            status: status,
+            type: activity.task_type || "To-Do",
+            priority: activity.priority || "Medium"
+        }
+    });
+
+    const filteredTasks = parsedTasks.filter((task) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            (task.title && task.title.toLowerCase().includes(query)) ||
+            (task.note && task.note.toLowerCase().includes(query)) ||
+            (task.assignedTo && task.assignedTo.toLowerCase().includes(query))
+        );
+    });
 
     return (
         <Box>
@@ -182,7 +213,7 @@ export default function LeadTasks() {
             </Stack>
 
             <Stack spacing={2}>
-                {tasks.map((task) => (
+                {filteredTasks.map((task) => (
                     <Paper
                         key={task.id}
                         elevation={0}
@@ -225,6 +256,13 @@ export default function LeadTasks() {
                                                 Overdue : {task.dueDate}
                                             </Typography>
                                         </Box>
+                                    ) : task.status === 'completed' ? (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#10b981' }}>
+                                            <TaskIcon fontSize="inherit" />
+                                            <Typography variant="caption" fontWeight={600}>
+                                                Task Closed
+                                            </Typography>
+                                        </Box>
                                     ) : (
                                         <Typography variant="caption" color="#94a3b8">
                                             {task.dueDate}
@@ -243,8 +281,21 @@ export default function LeadTasks() {
 
                             {/* Second Row: Checkbox + Title */}
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pl: 3.5 }}>
-                                <UncheckedIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                                <Typography variant="body2" color="#64748b">
+                                {task.status === 'completed' ? (
+                                    <CheckIcon sx={{ color: '#10b981', fontSize: 20 }} />
+                                ) : (
+                                    <IconButton
+                                        size="small"
+                                        sx={{ p: 0 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCompleteTask(task.id);
+                                        }}
+                                    >
+                                        <UncheckedIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                                    </IconButton>
+                                )}
+                                <Typography variant="body2" color="#64748b" sx={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none' }}>
                                     {task.title}
                                 </Typography>
                             </Box>

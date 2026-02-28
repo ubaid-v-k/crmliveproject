@@ -17,28 +17,9 @@ import {
     AccessTime as AccessTimeIcon,
 } from "@mui/icons-material";
 import LogCall from "./LogCall";
+import { createActivity } from "../../api/activities.api";
 
-const MOCK_CALLS = [
-    {
-        id: 1,
-        title: "Call from Maria Johnson",
-        description: "Brought Jane through our latest product line. He's interested and is going to get back to me.",
-        date: "June 24, 2025 at 5:30PM",
-        outcome: "",
-        duration: "",
-    },
-    {
-        id: 2,
-        title: "Call from Maria Johnson",
-        description: "Brought Jane through our latest product line. He's interested and is going to get back to me.",
-        date: "June 24, 2025 at 5:30PM",
-        outcome: "",
-        duration: "",
-    }
-];
-
-export default function LeadCalls() {
-    const [calls, setCalls] = useState(MOCK_CALLS);
+export default function LeadCalls({ searchQuery = "", activities = [], entityType, entityId, refreshActivities }) {
     const [expanded, setExpanded] = useState({ 1: true });
     const [isLogCallOpen, setLogCallOpen] = useState(false);
 
@@ -46,18 +27,37 @@ export default function LeadCalls() {
         setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const handleSaveCall = (callData) => {
-        const newCall = {
-            id: Date.now(),
-            title: "Call from You",
-            description: callData.note,
-            date: new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
-            outcome: callData.outcome,
-            duration: "" // Mock duration or add field if needed
-        };
-        setCalls(prev => [newCall, ...prev]);
-        setExpanded(prev => ({ ...prev, [newCall.id]: true }));
+    const handleSaveCall = async (callData) => {
+        try {
+            await createActivity({
+                type: "call",
+                subject: `Call Outcome: ${callData.outcome}`,
+                description: callData.note,
+                dueDate: callData.date && callData.time ? `${callData.date}T${callData.time}:00` : null,
+                [entityType]: entityId,
+                status: callData.outcome // Custom field handling or mapping needed on backend conceptually, using status
+            });
+            if (refreshActivities) {
+                refreshActivities();
+            }
+        } catch (error) {
+            console.error("Failed to log call", error);
+        }
+        setExpanded(prev => ({ ...prev, [Date.now()]: true }));
+        setLogCallOpen(false);
     };
+
+    // Filter calls based on search query
+    const parsedCalls = activities.filter(a => a.type === "call");
+
+    const filteredCalls = parsedCalls.filter((call) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            (call.subject && call.subject.toLowerCase().includes(query)) ||
+            (call.description && call.description.toLowerCase().includes(query))
+        );
+    });
 
     return (
         <Box>
@@ -99,7 +99,7 @@ export default function LeadCalls() {
                 June 2025
             </Typography>
 
-            {calls.map((call) => (
+            {filteredCalls.map((call) => (
                 <Paper
                     key={call.id}
                     elevation={0}
@@ -133,7 +133,7 @@ export default function LeadCalls() {
 
                             <Box>
                                 <Typography variant="body2" fontWeight={600} color="#334155">
-                                    {call.title}
+                                    {call.subject || "Call Log"}
                                 </Typography>
                                 <Typography variant="caption" color="#64748b" sx={{ display: 'block', mt: 0.5 }}>
                                     {call.description}
@@ -142,7 +142,7 @@ export default function LeadCalls() {
                         </Box>
 
                         <Typography variant="caption" color="#94a3b8" sx={{ whiteSpace: 'nowrap', ml: 2 }}>
-                            {call.date}
+                            {call.createdAt ? new Date(call.createdAt).toLocaleString() : ""}
                         </Typography>
                     </Box>
 

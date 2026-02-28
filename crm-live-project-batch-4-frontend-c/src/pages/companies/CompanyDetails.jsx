@@ -33,6 +33,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useCompanies } from '../../context/CompaniesContext';
 
+import { fetchActivities, generateAiSummary } from "../../api/activities.api";
+import axios from "axios";
+import ActivityFeed from "../../components/common/ActivityFeed";
+
 // Reuse Lead components as requested
 import LeadNotes from '../leads/LeadNotes';
 import LeadEmails from '../leads/LeadEmails';
@@ -49,54 +53,6 @@ import AttachmentsSection from '../../components/common/AttachmentsSection';
 
 const PRIMARY = "#5B4DDB";
 
-/* ================= MOCK DATA (Reused for UI demo) ================= */
-const ACTIVITIES = [
-    {
-        id: 1,
-        type: 'task',
-        title: 'Ticket activity',
-        subtitle: 'Maria Johnson created Ticket 1',
-        date: 'June 24, 2025 at 5:30PM',
-        status: 'pending',
-    },
-    {
-        id: 2,
-        type: 'task',
-        title: 'Ticket activity',
-        subtitle: 'Maria Johnson created Ticket 1',
-        date: 'June 24, 2025 at 5:30PM',
-        status: 'pending',
-    },
-    {
-        id: 3,
-        type: 'call',
-        title: 'Call from Maria Johnson',
-        subtitle: 'Brought Maria through our latest product line. She\'s interested and is going to get back to me.',
-        date: 'June 24, 2025 at 5:30PM',
-    },
-    {
-        id: 4,
-        type: 'meeting',
-        title: 'Meeting Maria Johnson and Jane Cooper',
-        subtitle: 'Let\'s discuss our new product line.',
-        date: 'June 24, 2025 at 5:30PM',
-    },
-    {
-        id: 5,
-        type: 'email',
-        title: 'Email tracking',
-        subtitle: 'Jane Cooper opened Hello there',
-        date: 'June 24, 2025 at 5:30PM',
-    },
-    {
-        id: 6,
-        type: 'note',
-        title: 'Note by Maria Johnson',
-        subtitle: 'Sample Note',
-        date: 'June 24, 2025 at 5:30PM',
-    },
-];
-
 const CompanyDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -108,12 +64,55 @@ const CompanyDetails = () => {
     const [editOpen, setEditOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Filter states
+    const [activities, setActivities] = useState([]);
+    const [aiSummary, setAiSummary] = useState("Loading summary...");
+    const [files, setFiles] = useState([]);
+
+    const loadActivities = async () => {
+        if (!company) return;
+        const data = await fetchActivities('company', id);
+        setActivities(data);
+    };
+
+    const loadSummary = async () => {
+        if (!company) return;
+        setAiSummary("Loading summary...");
+        const summary = await generateAiSummary('company', id, files.length);
+        setAiSummary(summary);
+    };
+
+    useEffect(() => {
+        loadSummary();
+    }, [files]);
+
     useEffect(() => {
         const data = getCompany(id);
         if (data) {
             setCompany(data);
         }
     }, [id, getCompany]);
+
+    useEffect(() => {
+        if (company) {
+            loadActivities();
+            loadSummary();
+        }
+    }, [company]);
+
+    const completeTask = async (taskId) => {
+        try {
+            const token = localStorage.getItem("crm_user_token");
+            await axios.patch(`http://localhost:8000/api/core/activities/${taskId}/`, { status: 'completed' }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.success("Task marked as completed");
+            loadActivities(); // Refresh feed
+            loadSummary();    // Refresh summary
+        } catch (error) {
+            toast.error("Failed to complete task");
+        }
+    };
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);
@@ -322,91 +321,17 @@ const CompanyDetails = () => {
                 </Tabs>
 
                 {activeTab === 0 ? (
-                    <Box>
-                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" mb={2}>Upcoming</Typography>
-
-                        <List sx={{ mb: 4, p: 0 }}>
-                            {ACTIVITIES.filter((a) => a.type === "task" && (a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))).map((item, idx) => (
-                                <Paper
-                                    key={idx}
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        mb: 2,
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "8px",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 1,
-                                    }}
-                                >
-                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                            <ArrowDownIcon fontSize="small" sx={{ color: "#94a3b8" }} />
-                                            <Typography variant="body2" fontWeight={600} color="#334155">
-                                                {item.title}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="caption" color="#94a3b8">
-                                            {item.date}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ pl: 4, display: "flex", alignItems: "center", gap: 1.5 }}>
-                                        <UncheckedIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                        <Typography variant="body2" color="#64748b">
-                                            {item.subtitle}
-                                        </Typography>
-                                    </Box>
-                                </Paper>
-                            ))}
-                        </List>
-
-                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" mb={2}>June 2025</Typography>
-                        <List sx={{ p: 0 }}>
-                            {ACTIVITIES.filter((a) => a.type !== "task" && (a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.subtitle.toLowerCase().includes(searchQuery.toLowerCase()))).map((item, idx) => (
-                                <Paper
-                                    key={idx}
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        mb: 2,
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "8px",
-                                    }}
-                                >
-                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                        <Box sx={{ display: "flex", gap: 1.5 }}>
-                                            <ArrowDownIcon fontSize="small" sx={{ color: "#94a3b8", mt: 0.5 }} />
-                                            <Box>
-                                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                                                    {renderActivityIcon(item.type)}
-                                                    <Typography variant="body2" fontWeight={600} color="#334155">
-                                                        {item.title}
-                                                    </Typography>
-                                                </Box>
-                                                <Typography variant="body2" color="#64748b" sx={{ fontSize: "13px" }}>
-                                                    {item.subtitle}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                        <Typography variant="caption" color="#94a3b8">
-                                            {item.date}
-                                        </Typography>
-                                    </Box>
-                                </Paper>
-                            ))}
-                        </List>
-                    </Box>
+                    <ActivityFeed activities={activities} searchQuery={searchQuery} onCompleteTask={completeTask} />
                 ) : activeTab === 1 ? (
-                    <LeadNotes />
+                    <LeadNotes searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'note')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="company" entityId={id} />
                 ) : activeTab === 2 ? (
-                    <LeadEmails onOpenCompose={() => setComposeOpen(true)} />
+                    <LeadEmails onOpenCompose={() => setComposeOpen(true)} searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'email')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="company" entityId={id} />
                 ) : activeTab === 3 ? (
-                    <LeadCalls />
+                    <LeadCalls searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'call')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="company" entityId={id} />
                 ) : activeTab === 4 ? (
-                    <LeadTasks />
+                    <LeadTasks searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'task')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="company" entityId={id} />
                 ) : activeTab === 5 ? (
-                    <LeadMeetings />
+                    <LeadMeetings searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'meeting')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="company" entityId={id} />
                 ) : null}
 
             </Box>
@@ -432,12 +357,12 @@ const CompanyDetails = () => {
                         <Typography variant="subtitle2" fontWeight={700} color={PRIMARY}>AI Company Summary</Typography>
                     </Stack>
                     <Typography variant="body2" color="#1e293b" fontSize="13px" lineHeight={1.5}>
-                        There are no activities associated with this lead and further details are needed to provide a comprehensive summary.
+                        {aiSummary}
                     </Typography>
                 </Paper>
 
                 {/* Attachments */}
-                <AttachmentsSection />
+                <AttachmentsSection files={files} onFilesChange={setFiles} />
             </Box>
 
             {/* Tracked Email Modal */}
@@ -445,6 +370,7 @@ const CompanyDetails = () => {
                 open={composeOpen}
                 onClose={() => setComposeOpen(false)}
                 leadId={id}
+                attachedFiles={files.map(f => f.file)}
             />
             {/* Edit Company Drawer */}
             <CreateCompany

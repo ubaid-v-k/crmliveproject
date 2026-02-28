@@ -20,17 +20,9 @@ import {
     Delete as DeleteIcon
 } from "@mui/icons-material";
 import CreateNote from "./CreateNote";
+import { createActivity } from "../../api/activities.api";
 
-export default function LeadNotes() {
-    const [notes, setNotes] = useState([
-        {
-            id: 1,
-            author: "Maria Johnson",
-            date: "June 24, 2025 at 5:30PM",
-            content: "Sample Note",
-            month: "June 2025",
-        }
-    ]);
+export default function LeadNotes({ searchQuery = "", activities = [], entityType, entityId, refreshActivities }) {
     const [expanded, setExpanded] = useState({ 1: true });
     const [isCreateOpen, setCreateOpen] = useState(false);
 
@@ -64,38 +56,45 @@ export default function LeadNotes() {
     };
 
     const handleDeleteClick = () => {
-        setNotes(prev => prev.filter(n => n.id !== selectedNoteId));
+        // Parent functionality if needed
         handleMenuClose();
     };
 
-    const handleSaveNote = (noteContent) => {
-        if (editNoteContent !== null) {
-            // Updating existing note
-            setNotes(prev => prev.map(n =>
-                n.id === selectedNoteId ? { ...n, content: noteContent } : n
-            ));
-            setEditNoteContent(null);
-            setSelectedNoteId(null);
-        } else {
-            // Creating new note
-            const newNote = {
-                id: Date.now(),
-                author: "You",
-                date: new Date().toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }),
-                content: noteContent,
-                month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
-            };
-            setNotes((prev) => [newNote, ...prev]);
-            setExpanded((prev) => ({ ...prev, [newNote.id]: true }));
+    const handleSaveNote = async (noteContent) => {
+        try {
+            await createActivity({
+                type: "note",
+                subject: `Note created on ${new Date().toLocaleDateString()}`,
+                description: noteContent,
+                [entityType]: entityId
+            });
+            if (refreshActivities) {
+                refreshActivities();
+            }
+        } catch (error) {
+            console.error("Failed to create note", error);
         }
+        setExpanded((prev) => ({ ...prev, [Date.now()]: true }));
         setCreateOpen(false);
     };
 
     const handleDrawerClose = () => {
         setCreateOpen(false);
-        setEditNoteContent(null); // Reset edit state on close
+        setEditNoteContent(null);
         setSelectedNoteId(null);
     };
+
+    // Filter notes based on search query
+    const parsedNotes = activities.filter(a => a.type === "note");
+
+    const filteredNotes = parsedNotes.filter((note) => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            (note.description && note.description.toLowerCase().includes(query)) ||
+            (note.subject && note.subject.toLowerCase().includes(query))
+        );
+    });
 
     return (
         <Box>
@@ -157,7 +156,7 @@ export default function LeadNotes() {
                 Recent Notes
             </Typography>
 
-            {notes.map((note) => (
+            {filteredNotes.map((note) => (
                 <Paper
                     key={note.id}
                     elevation={0}
@@ -189,13 +188,13 @@ export default function LeadNotes() {
                                 )}
                             </IconButton>
                             <Typography variant="body2" fontWeight={600} color="#334155">
-                                Note <span style={{ fontWeight: 400, color: "#64748b" }}>by {note.author}</span>
+                                Note <span style={{ fontWeight: 400, color: "#64748b" }}>by {note.user || "System"} {note.subject ? `- ${note.subject}` : ''}</span>
                             </Typography>
                         </Box>
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Typography variant="caption" color="#94a3b8">
-                                {note.date}
+                                {note.createdAt ? new Date(note.createdAt).toLocaleString() : ""}
                             </Typography>
                             <IconButton
                                 size="small"
@@ -210,9 +209,20 @@ export default function LeadNotes() {
                     {/* Note Content */}
                     <Collapse in={expanded[note.id]}>
                         <Box sx={{ px: 5, pb: 2 }}>
-                            <Typography variant="body2" color="#64748b">
-                                {note.content}
-                            </Typography>
+                            <Box
+                                sx={{
+                                    typography: 'body2',
+                                    color: '#64748b',
+                                    '& ul': { paddingLeft: 2, margin: '8px 0' },
+                                    '& ol': { paddingLeft: 2, margin: '8px 0' },
+                                    '& img': { maxWidth: '100%', height: 'auto', borderRadius: '8px', mt: 1 },
+                                    '& h1': { fontSize: '24px', fontWeight: 600, mt: 2, mb: 1, color: '#1e293b' },
+                                    '& h2': { fontSize: '20px', fontWeight: 600, mt: 2, mb: 1, color: '#1e293b' },
+                                    '& p': { margin: '0 0 8px 0' },
+                                    '&:last-child > *:last-child': { marginBottom: 0 }
+                                }}
+                                dangerouslySetInnerHTML={{ __html: note.description || note.content || "No content" }}
+                            />
                         </Box>
                     </Collapse>
                 </Paper>

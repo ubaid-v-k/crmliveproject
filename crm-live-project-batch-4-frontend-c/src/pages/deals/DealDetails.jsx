@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
@@ -19,6 +19,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import {
@@ -32,6 +33,9 @@ import {
 } from "@mui/icons-material";
 
 import { createNotification } from "../../api/dashboard.api";
+import { fetchActivities, generateAiSummary } from "../../api/activities.api";
+import axios from "axios";
+import ActivityFeed from "../../components/common/ActivityFeed";
 
 import { useDeals } from "../../context/DealsContext";
 import { useToast } from "../../hooks/useToast";
@@ -50,22 +54,55 @@ import CreateDeal from "./CreateDeal";
 
 const PRIMARY = "#5B4DDB";
 
-// Mock Activities
-const UPCOMING_ACTIVITIES = [
-    {
-        id: 1,
-        title: "Deal activity",
-        description: "Maria Johnson moved deal to Appointment scheduled.",
-        date: "June 24, 2025 at 5:30PM",
-    },
-];
-
 export default function DealDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { getDeal } = useDeals();
 
     const deal = getDeal(id);
+
+    // Filter states
+    const [activities, setActivities] = useState([]);
+    const [aiSummary, setAiSummary] = useState("Loading summary...");
+    const [files, setFiles] = useState([]);
+
+    const loadActivities = async () => {
+        if (!deal) return;
+        const data = await fetchActivities('deal', id);
+        setActivities(data);
+    };
+
+    const loadSummary = async () => {
+        if (!deal) return;
+        setAiSummary("Loading summary...");
+        const summary = await generateAiSummary('deal', id, files.length);
+        setAiSummary(summary);
+    };
+
+    useEffect(() => {
+        loadSummary();
+    }, [files]);
+
+    useEffect(() => {
+        loadActivities();
+        loadSummary();
+    }, [id, deal]);
+
+    const completeTask = async (taskId) => {
+        try {
+            const token = localStorage.getItem("crm_user_token");
+            await axios.patch(`http://localhost:8000/api/core/activities/${taskId}/`, { status: 'completed' }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const { toast } = require("react-toastify");
+            toast.success("Task marked as completed");
+            loadActivities(); // Refresh feed
+            loadSummary();    // Refresh summary
+        } catch (error) {
+            const { toast } = require("react-toastify");
+            toast.error("Failed to complete task");
+        }
+    };
 
     // If no deal found (e.g., refresh on new ID not in separate persistence), handle gracefully
     if (!deal) {
@@ -91,27 +128,21 @@ export default function DealDetails() {
     // Stage enforcement logic
     const [anchorEl, setAnchorEl] = useState(null);
     const { updateDeal } = useDeals();
-    const { toast } = useToast();  // Make sure useToast is imported if not already
+    const { toast } = useToast();
 
     const handleStageChange = (newStage) => {
         setAnchorEl(null);
         if (newStage === deal.stage) return;
 
-        // Requirement: Require at least one activity before moving to "Negotiation" (assuming "Contract Sent" or "Decision Maker Bought In" implies negotiation or similar advanced stage) or "Closed".
-        // The prompt specifically said "Negotiation" or "Closed", but "Negotiation" isn't in default list. I'll check "Contract Sent" and "Closed..."
         const restrictedStages = ["Contract Sent", "Closed Won", "Closed Lost"];
 
         if (restrictedStages.includes(newStage)) {
-            // Check if activities exist.
-            // In this mock, UPCOMING_ACTIVITIES is static. In real app, check `deal.activities` or context.
-            // For now, I'll check if UPCOMING_ACTIVITIES length > 0.
-            if (UPCOMING_ACTIVITIES.length === 0) {
+            if (activities.length === 0) {
                 toast.error(`Cannot move to ${newStage} without at least one activity.`);
                 return;
             }
         }
 
-        // Update deal
         updateDeal(deal.id, { stage: newStage });
     };
 
@@ -157,7 +188,7 @@ export default function DealDetails() {
                                 {deal.name}
                             </Typography>
                             <Typography variant="body2" fontWeight={600} color="#1e293b" mt={0.5}>
-                                {deal.amount}
+                                ${deal.amount}
                             </Typography>
                         </Box>
                     </Box>
@@ -188,11 +219,10 @@ export default function DealDetails() {
                             onClose={() => setAnchorEl(null)}
                         >
                             {[
-                                "Appointment Scheduled",
-                                "Qualified to Buy",
-                                "Presentation Scheduled",
-                                "Decision Maker Bought In",
-                                "Contract Sent",
+                                "Contact",
+                                "Qualified Lead",
+                                "Proposal Sent",
+                                "Negotiation",
                                 "Closed Won",
                                 "Closed Lost"
                             ].map((stage) => (
@@ -271,7 +301,7 @@ export default function DealDetails() {
                         {aboutOpen ? (
                             <KeyboardArrowDownIcon fontSize="small" color="primary" />
                         ) : (
-                            <KeyboardArrowRightIcon fontSize="small" color="primary" /> // Changed Up to Right for consistency with LeadDetails? LeadDetails uses Right/Down.
+                            <KeyboardArrowRightIcon fontSize="small" color="primary" />
                         )}
                         <Typography variant="subtitle2" fontWeight={700} color="#1e293b">
                             About this Deal
@@ -367,45 +397,9 @@ export default function DealDetails() {
                 </Box>
 
                 {/* Tab Panels */}
-                {tabValue === 0 && (
+                {tabValue === 0 ? (
                     <Box>
-                        <Typography variant="subtitle2" fontWeight={700} color="#1e293b" mb={2}>
-                            Upcoming
-                        </Typography>
-
-                        {/* Activity Cards */}
-                        {UPCOMING_ACTIVITIES
-                            .filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.description.toLowerCase().includes(searchQuery.toLowerCase()))
-                            .map((activity) => (
-                                <Paper
-                                    key={activity.id}
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "8px",
-                                        mb: 2,
-                                    }}
-                                >
-                                    <Stack
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        alignItems="flex-start"
-                                    >
-                                        <Box>
-                                            <Typography variant="subtitle2" fontWeight={600} color="#1e293b" gutterBottom>
-                                                {activity.title}
-                                            </Typography>
-                                            <Typography variant="body2" color="#64748b">
-                                                {activity.description}
-                                            </Typography>
-                                        </Box>
-                                        <Typography variant="caption" color="#94a3b8">
-                                            {activity.date}
-                                        </Typography>
-                                    </Stack>
-                                </Paper>
-                            ))}
+                        <ActivityFeed activities={activities} searchQuery={searchQuery} onCompleteTask={completeTask} />
 
                         <Paper
                             elevation={0}
@@ -413,6 +407,7 @@ export default function DealDetails() {
                                 p: 2,
                                 border: "1px solid #e2e8f0",
                                 borderRadius: "8px",
+                                mt: 2,
                                 mb: 2,
                             }}
                         >
@@ -421,12 +416,17 @@ export default function DealDetails() {
                             </Typography>
                         </Paper>
                     </Box>
-                )}
-                {tabValue === 1 && <LeadNotes />}
-                {tabValue === 2 && <LeadEmails onOpenCompose={() => setComposeOpen(true)} />}
-                {tabValue === 3 && <LeadCalls />}
-                {tabValue === 4 && <LeadTasks />}
-                {tabValue === 5 && <LeadMeetings />}
+                ) : tabValue === 1 ? (
+                    <LeadNotes searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'note')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="deal" entityId={id} />
+                ) : tabValue === 2 ? (
+                    <LeadEmails onOpenCompose={() => setComposeOpen(true)} searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'email')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="deal" entityId={id} />
+                ) : tabValue === 3 ? (
+                    <LeadCalls searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'call')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="deal" entityId={id} />
+                ) : tabValue === 4 ? (
+                    <LeadTasks searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'task')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="deal" entityId={id} />
+                ) : tabValue === 5 ? (
+                    <LeadMeetings searchQuery={searchQuery} activities={activities.filter(a => a.activity_type === 'meeting')} refreshActivities={() => { loadActivities(); loadSummary(); }} entityType="deal" entityId={id} />
+                ) : null}
             </Box>
 
             {/* 3. RIGHT SIDEBAR (Widgets) */}
@@ -452,12 +452,12 @@ export default function DealDetails() {
                         </Typography>
                     </Stack>
                     <Typography variant="body2" color="#1e293b" fontSize="13px" sx={{ lineHeight: 1.5 }}>
-                        The deal titled "{deal.name}" currently has no associated conversation, call, or note transcripts. There are no additional details or properties available for this deal at this time.
+                        {aiSummary}
                     </Typography>
                 </Paper>
 
                 {/* Attachments */}
-                <AttachmentsSection />
+                <AttachmentsSection files={files} onFilesChange={setFiles} />
             </Box>
 
             {/* Tracked Email Modal */}
@@ -465,6 +465,7 @@ export default function DealDetails() {
                 open={composeOpen}
                 onClose={() => setComposeOpen(false)}
                 leadId={id}
+                attachedFiles={files.map(f => f.file)}
             />
             {/* Edit Deal Drawer */}
             <CreateDeal

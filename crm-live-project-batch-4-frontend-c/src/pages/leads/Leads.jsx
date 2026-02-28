@@ -60,16 +60,22 @@ export default function Leads() {
   const filteredRows = useMemo(() => {
     const q = search.toLowerCase();
     return leads.filter((r) => {
+      const name = r.name || "";
+      const email = r.email || "";
+      const city = r.city || "";
+      const owner = r.owner || "";
+      const phone = r.phone || "";
+
       return (
         (!q ||
-          r.name.toLowerCase().includes(q) ||
-          r.email.toLowerCase().includes(q) ||
-          (r.city && r.city.toLowerCase().includes(q)) ||
-          r.owner.toLowerCase().includes(q) ||
-          r.phone.includes(q)) &&
+          name.toLowerCase().includes(q) ||
+          email.toLowerCase().includes(q) ||
+          city.toLowerCase().includes(q) ||
+          owner.toLowerCase().includes(q) ||
+          phone.toLowerCase().includes(q)) &&
         (!filters.status || r.status === filters.status) &&
         (!filters.owner || r.owner === filters.owner) &&
-        (!filters.created || r.created.includes(filters.created))
+        (!filters.created || (r.created || "").includes(filters.created))
       );
     });
   }, [leads, search, filters]);
@@ -114,14 +120,9 @@ export default function Leads() {
   const handleEdit = (lead, e) => {
     e.stopPropagation();
     setEditData({
-      firstName: lead.firstName || lead.name.split(" ")[0],
-      lastName: lead.lastName || lead.name.split(" ").slice(1).join(" "),
-      email: lead.email,
-      phone: lead.phone,
-      title: lead.title,
-      owner: lead.owner,
-      status: lead.status,
-      id: lead.id,
+      ...lead,
+      firstName: lead.firstName || (lead.name ? lead.name.split(" ")[0] : ""),
+      lastName: lead.lastName || (lead.name ? lead.name.split(" ").slice(1).join(" ") : ""),
     });
     setDrawerOpen(true);
   };

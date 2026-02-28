@@ -22,28 +22,38 @@ import {
 
 const PRIMARY = "#5B4DDB";
 
-export default function AttachmentsSection() {
+export default function AttachmentsSection({ files: externalFiles, onFilesChange }) {
     const [isOpen, setIsOpen] = useState(true);
-    const [files, setFiles] = useState([]);
+    const [localFiles, setLocalFiles] = useState([]);
     const fileInputRef = useRef(null);
+
+    const files = externalFiles !== undefined ? externalFiles : localFiles;
+    const updateFiles = (newFiles) => {
+        if (onFilesChange) {
+            onFilesChange(newFiles);
+        } else {
+            setLocalFiles(newFiles);
+        }
+    };
 
     const handleAddClick = () => {
         fileInputRef.current?.click();
     };
 
     const handleFileChange = (event) => {
-        const newFiles = Array.from(event.target.files).map((file) => ({
+        const newAddedFiles = Array.from(event.target.files).map((file) => ({
             name: file.name,
             type: file.type,
             url: URL.createObjectURL(file), // Create preview URL
+            file: file,
         }));
-        setFiles((prev) => [...prev, ...newFiles]);
+        updateFiles([...files, ...newAddedFiles]);
         // Reset input so same file can be selected again if needed
         event.target.value = "";
     };
 
     const handleDelete = (index) => {
-        setFiles((prev) => prev.filter((_, i) => i !== index));
+        updateFiles(files.filter((_, i) => i !== index));
     };
 
     const renderFileIcon = (type) => {

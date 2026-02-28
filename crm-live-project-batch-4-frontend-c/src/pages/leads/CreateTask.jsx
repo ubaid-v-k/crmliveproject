@@ -104,16 +104,12 @@ export default function CreateTask({ open, onClose, onSave, initialData }) {
                     </Typography>
                     <TextField
                         fullWidth
-                        placeholder="Choose"
+                        type="date"
                         value={dueDate}
                         onChange={(e) => setDueDate(e.target.value)}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <CalendarTodayIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: "8px" }
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                            "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                         }}
                     />
                 </Grid>
@@ -123,16 +119,12 @@ export default function CreateTask({ open, onClose, onSave, initialData }) {
                     </Typography>
                     <TextField
                         fullWidth
-                        placeholder="Choose"
+                        type="time"
                         value={time}
                         onChange={(e) => setTime(e.target.value)}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <AccessTimeIcon sx={{ color: "#94a3b8", fontSize: 20 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: "8px" }
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                            "& .MuiOutlinedInput-root": { borderRadius: "8px" }
                         }}
                     />
                 </Grid>

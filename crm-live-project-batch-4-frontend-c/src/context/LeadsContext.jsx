@@ -28,6 +28,7 @@ export function LeadsProvider({ children }) {
         New: { bg: "#dbeafe", color: "#2563eb" },
         Open: { bg: "#d1fae5", color: "#059669" },
         "In Progress": { bg: "#ffedd5", color: "#ea580c" },
+        Qualified: { bg: "#f3e8ff", color: "#7e22ce" },
         Lost: { bg: "#fee2e2", color: "#dc2626" },
         "Bad Info": { bg: "#f3f4f6", color: "#6b7280" },
     };
